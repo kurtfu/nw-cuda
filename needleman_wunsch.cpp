@@ -25,24 +25,23 @@ int NeedlemanWunsch::score(std::string ref, std::string src)
     std::vector<int> prev(n_col);
     std::vector<int> curr(n_col);
 
-    for (std::size_t rw = 0; rw < n_row; ++rw)
+    for (std::size_t cl = 0; cl < n_col; ++cl)
+    {
+        curr[cl] = cl * gap;
+    }
+
+    for (std::size_t rw = 1; rw < n_row; ++rw)
     {
         std::swap(prev, curr);
+        curr[0] = rw * gap;
 
-        for (std::size_t cl = 0; cl < n_col; ++cl)
+        for (std::size_t cl = 1; cl < n_col; ++cl)
         {
-            if (rw == 0 || cl == 0)
-            {
-                curr[cl] = (rw + cl) * gap;
-            }
-            else
-            {
-                int eps = (ref[cl - 1] == src[rw - 1]) ? match : miss;
+            int eps = (ref[cl - 1] == src[rw - 1]) ? match : miss;
 
-                curr[cl] = std::max({prev[cl - 1] + eps,
-                                     prev[cl] + gap,
-                                     curr[cl - 1] + gap});
-            }
+            curr[cl] = std::max({prev[cl - 1] + eps,
+                                 prev[cl] + gap,
+                                 curr[cl - 1] + gap});
         }
     }
 
