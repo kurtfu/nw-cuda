@@ -1,26 +1,24 @@
-#ifndef NEEDLEMAN_WUNSCH_HPP
-#define NEEDLEMAN_WUNSCH_HPP
+#ifndef NW_SERIAL_HPP
+#define NW_SERIAL_HPP
 
 /*****************************************************************************/
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include <string>
+#include "aligner.hpp"
 
 /*****************************************************************************/
 /*  DATA TYPES                                                               */
 /*****************************************************************************/
 
-class NeedlemanWunsch
+namespace nw
 {
-public:
-    NeedlemanWunsch(int match, int miss, int gap);
-    int score(std::string ref, std::string src);
+    class serial : public aligner
+    {
+    public:
+        serial(int match, int miss, int gap);
+        int score(std::string const& ref, std::string const& src) override;
+    };
+}
 
-private:
-    int match;
-    int miss;
-    int gap;
-};
-
-#endif  // NEEDLEMAN_WUNSCH_HPP
+#endif  // NW_SERIAL_HPP

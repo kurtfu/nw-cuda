@@ -2,7 +2,7 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "needleman_wunsch_cuda.hpp"
+#include "cuda.hpp"
 #include <algorithm>
 
 /*****************************************************************************/
@@ -25,12 +25,12 @@ namespace
 
 namespace
 {
-    __global__ void nw_cuda_score(int *curr,
+    __global__ void nw_cuda_score(std::size_t ad,
+                                  int *curr,
                                   int const *hv,
                                   int const *diag,
                                   char const *src,
-                                  char const *ref,
-                                  std::size_t ad)
+                                  char const *ref)
     {
         std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
         std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
@@ -66,15 +66,18 @@ namespace
 /*  PUBLIC METHODS                                                           */
 /*****************************************************************************/
 
-NeedlemanWunschCUDA::NeedlemanWunschCUDA(int match, int miss, int gap)
-    : NeedlemanWunsch{match, miss, gap}
+nw::cuda::cuda(int match, int miss, int gap)
 {
+    this->match = match;
+    this->miss  = miss;
+    this->gap   = gap;
+
     cudaMemcpyToSymbol(nw_cuda_match, &match, sizeof(int));
     cudaMemcpyToSymbol(nw_cuda_miss, &miss, sizeof(int));
     cudaMemcpyToSymbol(nw_cuda_gap, &gap, sizeof(int));
 }
 
-int NeedlemanWunschCUDA::score(std::string ref, std::string src)
+int nw::cuda::score(std::string const& ref, std::string const& src)
 {
     std::size_t n_row = std::min(ref.size(), src.size()) + 1;
     std::size_t n_col = std::max(ref.size(), src.size()) + 1;
@@ -119,15 +122,15 @@ int NeedlemanWunschCUDA::score(std::string ref, std::string src)
 
     for (std::size_t ad = 0; ad < n_diag; ++ad)
     {
-        nw_cuda_score<<<n_block, n_thread>>>(d_curr, d_hv, d_diag, d_ref, d_src, ad);
-        cudaDeviceSynchronize();
-
         std::swap(d_diag, d_hv);
         std::swap(d_hv, d_curr);
+
+        nw_cuda_score<<<n_block, n_thread>>>(ad, d_curr, d_hv, d_diag, d_ref, d_src);
+        cudaDeviceSynchronize();
     }
 
     int score;
-    cudaMemcpy(&score, &d_hv[n_row - 1], sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&score, &d_curr[n_row - 1], sizeof(int), cudaMemcpyDeviceToHost);
 
     cudaFree(d_src);
     cudaFree(d_ref);

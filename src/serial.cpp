@@ -2,7 +2,7 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "needleman_wunsch.hpp"
+#include "serial.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -11,13 +11,14 @@
 /*  PUBLIC METHODS                                                           */
 /*****************************************************************************/
 
-NeedlemanWunsch::NeedlemanWunsch(int match, int miss, int gap)
-    : match{match}
-    , miss{miss}
-    , gap{gap}
-{}
+nw::serial::serial(int match, int miss, int gap)
+{
+    this->match = match;
+    this->miss  = miss;
+    this->gap   = gap;
+}
 
-int NeedlemanWunsch::score(std::string ref, std::string src)
+int nw::serial::score(std::string const& ref, std::string const& src)
 {
     std::size_t n_row = std::min(ref.size(), src.size()) + 1;
     std::size_t n_col = std::max(ref.size(), src.size()) + 1;

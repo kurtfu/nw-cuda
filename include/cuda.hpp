@@ -1,21 +1,24 @@
-#ifndef NEEDLEMAN_WUNSCH_CUDA_HPP
-#define NEEDLEMAN_WUNSCH_CUDA_HPP
+#ifndef NW_CUDA_HPP
+#define NW_CUDA_HPP
 
 /*****************************************************************************/
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "needleman_wunsch.hpp"
+#include "aligner.hpp"
 
 /*****************************************************************************/
 /*  DATA TYPES                                                               */
 /*****************************************************************************/
 
-class NeedlemanWunschCUDA : public NeedlemanWunsch
+namespace nw
 {
-public:
-    NeedlemanWunschCUDA(int match, int miss, int gap);
-    int score(std::string ref, std::string src);
-};
+    class cuda : public aligner
+    {
+    public:
+        cuda(int match, int miss, int gap);
+        int score(std::string const& ref, std::string const& src) override;
+    };
+}
 
-#endif  // NEEDLEMAN_WUNSCH_CUDA_HPP
+#endif  // NW_CUDA_HPP
