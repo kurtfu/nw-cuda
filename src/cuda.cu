@@ -6,6 +6,12 @@
 #include <algorithm>
 
 /*****************************************************************************/
+/*  USING DECLERATIONS                                                       */
+/*****************************************************************************/
+
+using nw::cuda;
+
+/*****************************************************************************/
 /*  DEVICE SYMBOLS                                                           */
 /*****************************************************************************/
 
@@ -66,7 +72,7 @@ namespace
 /*  PUBLIC METHODS                                                           */
 /*****************************************************************************/
 
-nw::cuda::cuda(int match, int miss, int gap)
+cuda::cuda(int match, int miss, int gap)
 {
     this->match = match;
     this->miss  = miss;
@@ -77,7 +83,7 @@ nw::cuda::cuda(int match, int miss, int gap)
     cudaMemcpyToSymbol(nw_cuda_gap, &gap, sizeof(int));
 }
 
-int nw::cuda::score(std::string const& ref, std::string const& src)
+int cuda::score(std::string const& ref, std::string const& src)
 {
     std::size_t n_row = std::min(ref.size(), src.size()) + 1;
     std::size_t n_col = std::max(ref.size(), src.size()) + 1;

@@ -8,17 +8,23 @@
 #include <vector>
 
 /*****************************************************************************/
+/*  USING DECLERATIONS                                                       */
+/*****************************************************************************/
+
+using nw::serial;
+
+/*****************************************************************************/
 /*  PUBLIC METHODS                                                           */
 /*****************************************************************************/
 
-nw::serial::serial(int match, int miss, int gap)
+serial::serial(int match, int miss, int gap)
 {
     this->match = match;
     this->miss  = miss;
     this->gap   = gap;
 }
 
-int nw::serial::score(std::string const& ref, std::string const& src)
+int serial::score(std::string const& ref, std::string const& src)
 {
     std::size_t n_row = std::min(ref.size(), src.size()) + 1;
     std::size_t n_col = std::max(ref.size(), src.size()) + 1;
