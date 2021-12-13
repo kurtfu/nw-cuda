@@ -72,8 +72,8 @@ namespace
                                   int *curr,
                                   int const *hv,
                                   int const *diag,
-                                  char const *src,
-                                  char const *ref)
+                                  char const *ref,
+                                  char const *src)
     {
         std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
         std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
