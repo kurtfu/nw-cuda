@@ -16,6 +16,7 @@ namespace nw
     class aligner
     {
     public:
+        virtual ~aligner() = default;
         virtual int score(std::string const& ref, std::string const& src) = 0;
 
     protected:

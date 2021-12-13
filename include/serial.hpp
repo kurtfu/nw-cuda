@@ -17,6 +17,8 @@ namespace nw
     {
     public:
         serial(int match, int miss, int gap);
+        ~serial() = default;
+
         int score(std::string const& ref, std::string const& src) override;
     };
 }

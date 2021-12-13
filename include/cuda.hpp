@@ -17,6 +17,8 @@ namespace nw
     {
     public:
         cuda(int match, int miss, int gap);
+        ~cuda() = default;
+
         int score(std::string const& ref, std::string const& src) override;
     };
 }
