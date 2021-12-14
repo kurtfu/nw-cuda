@@ -3,15 +3,7 @@
 #------------------------------------------------------------------------------
 
 # The tag describes the name of the project.
-PROJ = $(notdir ${CURDIR})
-
-#------------------------------------------------------------------------------
-# PATH DEFINITIONS
-#------------------------------------------------------------------------------
-
-PROJ_PATH  = .
-BIN_PATH   = $(addsuffix /bin, ${PROJ_PATH})
-BUILD_PATH = $(addsuffix /build, ${PROJ_PATH})
+PROJ = seqgen
 
 #------------------------------------------------------------------------------
 # SHELL COMMANDS
@@ -20,13 +12,9 @@ BUILD_PATH = $(addsuffix /build, ${PROJ_PATH})
 ifeq (${OS}, Windows_NT)
     MKDIR = mkdir 2>nul     # Make directory and suspend any error.
     RMDIR = rd /s /q 2>nul  # Remove directory and suspend any error.
-
-    OBJ_EXT = .obj          # Object file suffix.
 else
     MKDIR = mkdir -p        # Make directory and suspend any error.
     RMDIR = rm -rf          # Remove directory and suspend any error.
-
-    OBJ_EXT = .o            # Object file suffix.
 endif
 
 #------------------------------------------------------------------------------
@@ -37,13 +25,10 @@ endif
 IPATH = ${PROJ_PATH}/include
 
 # The tag describes the source files of the project.
-SRC  = $(wildcard ${PROJ_PATH}/*.cpp)     \
-       $(wildcard ${PROJ_PATH}/src/*.cpp) \
-       $(wildcard ${PROJ_PATH}/src/*.cu)
+SRC  = $(wildcard ${PROJ_PATH}/utils/seqgen.cpp)
 
 # The tag describes the object files of the project.
-OBJ  = $(patsubst ${PROJ_PATH}/%.cpp,${BUILD_PATH}/%${OBJ_EXT}, ${SRC})
-OBJ := $(patsubst ${PROJ_PATH}/%.cu,${BUILD_PATH}/%${OBJ_EXT}, ${OBJ})
+OBJ  = $(patsubst ${PROJ_PATH}/%.cpp,${BUILD_PATH}/%.o, ${SRC})
 
 # The tag describes the output file of the project.
 OUT  = $(addprefix ${BIN_PATH}/, ${PROJ})
@@ -52,15 +37,16 @@ OUT  = $(addprefix ${BIN_PATH}/, ${PROJ})
 # BUILD TOOLS
 #------------------------------------------------------------------------------
 
-CC = nvcc  # CUDA/C++ Compiler
-LD = nvcc  # Linker
+CC = g++  # C++ Compiler
+LD = g++  # Linker
 
 #------------------------------------------------------------------------------
 # COMPILER & LINKER FLAGS
 #------------------------------------------------------------------------------
 
 CXXFLAGS = $(addprefix -I, ${IPATH}) \
-           -expt-relaxed-constexpr \
+           -Wall \
+           -Wextra \
            -std=c++17 \
            -O2
 
@@ -68,15 +54,10 @@ CXXFLAGS = $(addprefix -I, ${IPATH}) \
 # MAKE RULES
 #------------------------------------------------------------------------------
 
-.PHONY: all clean
+.PHONY: seqgen
 
-all: ${OUT}
-	@echo "Project Build Successfully"
-
-clean:
-	@${RMDIR} "${BIN_PATH}" ||:
-	@${RMDIR} "${BUILD_PATH}" ||:
-	@echo "Project Cleaned Successfully"
+seqgen: ${OUT}
+	@echo "Sequence Generator Build Successfully"
 
 #------------------------------------------------------------------------------
 # BUILD RULES
@@ -86,16 +67,6 @@ ${OUT}: ${OBJ}
 	@${MKDIR} "$(dir $@)" ||:
 	${LD} -o $@ ${OBJ} ${LD_FLAGS}
 
-${BUILD_PATH}/%${OBJ_EXT}: ${PROJ_PATH}/%.cpp
+${BUILD_PATH}/%.o: ${PROJ_PATH}/%.cpp
 	@${MKDIR} "$(dir $@)" ||:
 	${CC} -c $< -o $@ ${CXXFLAGS}
-
-${BUILD_PATH}/%${OBJ_EXT}: ${PROJ_PATH}/%.cu
-	@${MKDIR} "$(dir $@)" ||:
-	${CC} -c $< -o $@ ${CXXFLAGS}
-
-#------------------------------------------------------------------------------
-# UTILITY PROJECT RULES
-#------------------------------------------------------------------------------
-
--include utils/seqgen.mk
