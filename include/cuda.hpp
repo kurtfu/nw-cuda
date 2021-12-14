@@ -26,6 +26,9 @@ namespace nw
 
         void fill(std::string const& ref, std::string const& src) override;
         int score(std::string const& ref, std::string const& src) override;
+
+    private:
+        std::pair<std::size_t, std::size_t> align_dimension(std::size_t n_vect);
     };
 }
 

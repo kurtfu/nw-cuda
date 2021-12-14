@@ -169,21 +169,10 @@ void cuda::fill(std::string const& ref, std::string const& src)
     cudaMalloc(&d_src, src.size());
     cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyHostToDevice);
 
-    std::size_t n_vect = n_row;
+    auto dimension = align_dimension(n_row);
 
-    constexpr std::size_t max_thread_per_block = 1024;
-    constexpr std::size_t warp_size = 32;
-
-    std::size_t n_block = n_vect / max_thread_per_block;
-    n_block = (n_vect % max_thread_per_block) ? n_block + 1 : n_block;
-
-    std::size_t n_thread = n_vect / n_block;
-    n_thread = (n_vect % n_block) ? n_thread + 1 : n_thread;
-
-    if (n_thread % warp_size)
-    {
-        n_thread = ((n_thread / warp_size) + 1) * warp_size;
-    }
+    std::size_t n_block  = dimension.first;
+    std::size_t n_thread = dimension.second;
 
     std::size_t n_diag = n_row + n_col - 1;
 
@@ -226,21 +215,10 @@ int cuda::score(std::string const& ref, std::string const& src)
     cudaMalloc(&d_src, src.size());
     cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyHostToDevice);
 
-    std::size_t n_vect = n_row;
+    auto dimension = align_dimension(n_row);
 
-    constexpr std::size_t max_thread_per_block = 1024;
-    constexpr std::size_t warp_size = 32;
-
-    std::size_t n_block = n_vect / max_thread_per_block;
-    n_block = (n_vect % max_thread_per_block) ? n_block + 1 : n_block;
-
-    std::size_t n_thread = n_vect / n_block;
-    n_thread = (n_vect % n_block) ? n_thread + 1 : n_thread;
-
-    if (n_thread % warp_size)
-    {
-        n_thread = ((n_thread / warp_size) + 1) * warp_size;
-    }
+    std::size_t n_block  = dimension.first;
+    std::size_t n_thread = dimension.second;
 
     std::size_t n_diag = n_row + n_col - 1;
 
@@ -264,4 +242,27 @@ int cuda::score(std::string const& ref, std::string const& src)
     cudaFree(d_curr);
 
     return score;
+}
+
+/*****************************************************************************/
+/*  PRIVATE METHODS                                                          */
+/*****************************************************************************/
+
+std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
+{
+    constexpr std::size_t max_thread_per_block = 1024;
+    constexpr std::size_t warp_size = 32;
+
+    std::size_t n_block = n_vect / max_thread_per_block;
+    n_block = (n_vect % max_thread_per_block) ? n_block + 1 : n_block;
+
+    std::size_t n_thread = n_vect / n_block;
+    n_thread = (n_vect % n_block) ? n_thread + 1 : n_thread;
+
+    if (n_thread % warp_size)
+    {
+        n_thread = ((n_thread / warp_size) + 1) * warp_size;
+    }
+
+    return std::make_pair(n_block, n_thread);
 }
