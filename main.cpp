@@ -17,7 +17,7 @@
 int main(int argc, char const* argv[])
 {
     std::unordered_map<std::string, nw::algo> algo = {
-        {"cuda", nw::algo::cuda},
+        {"cuda",   nw::algo::cuda  },
         {"serial", nw::algo::serial},
     };
 
@@ -32,7 +32,7 @@ int main(int argc, char const* argv[])
     if (samples == nullptr)
     {
         std::cerr << "Input file must be specified with \'--input\'\n";
-        return - 1;
+        return -1;
     }
 
     auto log = find_opt("--output");
@@ -40,7 +40,7 @@ int main(int argc, char const* argv[])
     if (log == nullptr)
     {
         std::cerr << "Output file must be specified with \'--output\'\n";
-        return - 1;
+        return -1;
     }
 
     auto type = find_opt("--algo");
@@ -48,13 +48,13 @@ int main(int argc, char const* argv[])
     if (type == nullptr)
     {
         std::cerr << "Algorithm type must be specified with \'--algo\'\n";
-        return - 1;
+        return -1;
     }
 
     if (algo.find(*(type + 1)) == algo.end())
     {
         std::cerr << *(type + 1) << " is not a valid algorithm type\n";
-        return - 1;
+        return -1;
     }
 
     auto nw = nw::creator::create(algo[*(type + 1)], 1, -1, -2);
@@ -77,7 +77,7 @@ int main(int argc, char const* argv[])
 
         nw->fill(ref, src);
 
-        auto end = std::chrono::high_resolution_clock::now();
+        auto end     = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
 
         std::size_t rw = nw->row_count() - 1;

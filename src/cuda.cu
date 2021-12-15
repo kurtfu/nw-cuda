@@ -31,7 +31,7 @@ namespace
 
 namespace
 {
-    __global__ void nw_cuda_fill(std::size_t ad, int *matrix, char const *ref, char const *src)
+    __global__ void nw_cuda_fill(std::size_t ad, int* matrix, char const* ref, char const* src)
     {
         std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
         std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
@@ -69,11 +69,11 @@ namespace
     }
 
     __global__ void nw_cuda_score(std::size_t ad,
-                                  int *curr,
-                                  int const *hv,
-                                  int const *diag,
-                                  char const *ref,
-                                  char const *src)
+                                  int*        curr,
+                                  int const*  hv,
+                                  int const*  diag,
+                                  char const* ref,
+                                  char const* src)
     {
         std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
         std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
@@ -251,13 +251,13 @@ int cuda::score(std::string const& ref, std::string const& src)
 std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
 {
     constexpr std::size_t max_thread_per_block = 1024;
-    constexpr std::size_t warp_size = 32;
+    constexpr std::size_t warp_size            = 32;
 
     std::size_t n_block = n_vect / max_thread_per_block;
-    n_block = (n_vect % max_thread_per_block) ? n_block + 1 : n_block;
+    n_block             = (n_vect % max_thread_per_block) ? n_block + 1 : n_block;
 
     std::size_t n_thread = n_vect / n_block;
-    n_thread = (n_vect % n_block) ? n_thread + 1 : n_thread;
+    n_thread             = (n_vect % n_block) ? n_thread + 1 : n_thread;
 
     if (n_thread % warp_size)
     {
