@@ -52,23 +52,22 @@ OUT  = $(addprefix ${BIN_PATH}/, ${PROJ})
 # BUILD TOOLS
 #------------------------------------------------------------------------------
 
-CC = nvcc  # CUDA/C++ Compiler
-LD = nvcc  # Linker
+NVCC = nvcc  # CUDA/C++ Compiler
 
 #------------------------------------------------------------------------------
 # COMPILER & LINKER FLAGS
 #------------------------------------------------------------------------------
 
-CXXFLAGS = $(addprefix -I, ${IPATH}) \
-           -expt-relaxed-constexpr \
-           -std=c++17 \
-           -O2
+NVCCFLAGS = $(addprefix -I, ${IPATH}) \
+            -expt-relaxed-constexpr \
+            -std=c++17 \
+            -O2
 
 #------------------------------------------------------------------------------
 # MAKE RULES
 #------------------------------------------------------------------------------
 
-.PHONY: all clean
+.PHONY: all clean seqgen
 
 all: ${OUT}
 	@echo "Project Build Successfully"
@@ -78,24 +77,21 @@ clean:
 	@${RMDIR} "${BUILD_PATH}" ||:
 	@echo "Project Cleaned Successfully"
 
+seqgen:
+	$(MAKE) --no-print-directory -C utils
+
 #------------------------------------------------------------------------------
 # BUILD RULES
 #------------------------------------------------------------------------------
 
 ${OUT}: ${OBJ}
 	@${MKDIR} "$(dir $@)" ||:
-	${LD} -o $@ ${OBJ} ${LD_FLAGS}
+	${NVCC} -o $@ ${OBJ}
 
 ${BUILD_PATH}/%${OBJ_EXT}: ${PROJ_PATH}/%.cpp
 	@${MKDIR} "$(dir $@)" ||:
-	${CC} -c $< -o $@ ${CXXFLAGS}
+	${NVCC} -c $< -o $@ ${NVCCFLAGS}
 
 ${BUILD_PATH}/%${OBJ_EXT}: ${PROJ_PATH}/%.cu
 	@${MKDIR} "$(dir $@)" ||:
-	${CC} -c $< -o $@ ${CXXFLAGS}
-
-#------------------------------------------------------------------------------
-# UTILITY PROJECT RULES
-#------------------------------------------------------------------------------
-
--include utils/seqgen.mk
+	${NVCC} -c $< -o $@ ${NVCCFLAGS}
