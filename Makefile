@@ -20,13 +20,9 @@ BUILD_PATH = $(addsuffix /build, ${PROJ_PATH})
 ifeq (${OS}, Windows_NT)
     MKDIR = mkdir 2>nul     # Make directory and suspend any error.
     RMDIR = rd /s /q 2>nul  # Remove directory and suspend any error.
-
-    OBJ_EXT = .obj          # Object file suffix.
 else
     MKDIR = mkdir -p        # Make directory and suspend any error.
     RMDIR = rm -rf          # Remove directory and suspend any error.
-
-    OBJ_EXT = .o            # Object file suffix.
 endif
 
 #------------------------------------------------------------------------------
@@ -42,11 +38,16 @@ SRC  = $(wildcard ${PROJ_PATH}/*.cpp)     \
        $(wildcard ${PROJ_PATH}/src/*.cu)
 
 # The tag describes the object files of the project.
-OBJ  = $(patsubst ${PROJ_PATH}/%.cpp,${BUILD_PATH}/%${OBJ_EXT}, ${SRC})
-OBJ := $(patsubst ${PROJ_PATH}/%.cu,${BUILD_PATH}/%${OBJ_EXT}, ${OBJ})
+OBJ  = $(patsubst ${PROJ_PATH}/%.cpp,${BUILD_PATH}/%.o, ${SRC})
+OBJ := $(patsubst ${PROJ_PATH}/%.cu,${BUILD_PATH}/%.o, ${OBJ})
 
 # The tag describes the output file of the project.
 OUT  = $(addprefix ${BIN_PATH}/, ${PROJ})
+
+# Convert object suffix to MSVC style if the host is Windows.
+ifeq (${OS}, Windows_NT)
+    OBJ := $(OBJ:.o=.obj)
+endif
 
 #------------------------------------------------------------------------------
 # BUILD TOOLS
@@ -88,10 +89,18 @@ ${OUT}: ${OBJ}
 	@${MKDIR} "$(dir $@)" ||:
 	${NVCC} -o $@ ${OBJ}
 
-${BUILD_PATH}/%${OBJ_EXT}: ${PROJ_PATH}/%.cpp
+${BUILD_PATH}/%.o: ${PROJ_PATH}/%.cpp
 	@${MKDIR} "$(dir $@)" ||:
 	${NVCC} -c $< -o $@ ${NVCCFLAGS}
 
-${BUILD_PATH}/%${OBJ_EXT}: ${PROJ_PATH}/%.cu
+${BUILD_PATH}/%.o: ${PROJ_PATH}/%.cu
+	@${MKDIR} "$(dir $@)" ||:
+	${NVCC} -c $< -o $@ ${NVCCFLAGS}
+
+${BUILD_PATH}/%.obj: ${PROJ_PATH}/%.cpp
+	@${MKDIR} "$(dir $@)" ||:
+	${NVCC} -c $< -o $@ ${NVCCFLAGS}
+
+${BUILD_PATH}/%.obj: ${PROJ_PATH}/%.cu
 	@${MKDIR} "$(dir $@)" ||:
 	${NVCC} -c $< -o $@ ${NVCCFLAGS}
