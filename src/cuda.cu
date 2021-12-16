@@ -38,100 +38,95 @@ namespace
 /*  DEVICE KERNELS                                                           */
 /*****************************************************************************/
 
-namespace
+__global__ static void nw_cuda_fill(int*        matrix,
+                                    char const* ref,
+                                    char const* src)
 {
-    __global__ void nw_cuda_fill(int*        matrix,
-                                 char const* ref,
-                                 char const* src)
+    cg::grid_group grid   = cg::this_grid();
+    std::size_t    n_diag = nw_cuda_n_row + nw_cuda_n_col - 1;
+
+    for (std::size_t ad = 0; ad < n_diag; ++ad)
     {
-        cg::grid_group grid = cg::this_grid();
+        cg::sync(grid);
 
-        std::size_t n_diag = nw_cuda_n_row + nw_cuda_n_col - 1;
+        std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
+        std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
 
-        for (std::size_t ad = 0; ad < n_diag; ++ad)
+        std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
+
+        std::size_t top_row = rw;
+
+        rw += threadIdx.x + (blockIdx.x * blockDim.x);
+        cl -= (blockIdx.x * blockDim.x + threadIdx.x);
+
+        if (rw - top_row >= n_vect)
         {
-            cg::sync(grid);
+            continue;
+        }
 
-            std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
-            std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
+        std::size_t pos = rw * nw_cuda_n_col + cl;
 
-            std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
+        if (rw == 0 || cl == 0)
+        {
+            matrix[pos] = (rw + cl) * nw_cuda_gap;
+        }
+        else
+        {
+            int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
 
-            std::size_t top_row = rw;
+            std::size_t diag = (rw - 1) * nw_cuda_n_col + (cl - 1);
+            std::size_t horz = (rw - 1) * nw_cuda_n_col + cl;
+            std::size_t vert = rw * nw_cuda_n_col + (cl - 1);
 
-            rw += threadIdx.x + (blockIdx.x * blockDim.x);
-            cl -= (blockIdx.x * blockDim.x + threadIdx.x);
-
-            if (rw - top_row >= n_vect)
-            {
-                continue;
-            }
-
-            std::size_t pos = rw * nw_cuda_n_col + cl;
-
-            if (rw == 0 || cl == 0)
-            {
-                matrix[pos] = (rw + cl) * nw_cuda_gap;
-            }
-            else
-            {
-                int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
-
-                std::size_t diag = (rw - 1) * nw_cuda_n_col + (cl - 1);
-                std::size_t horz = (rw - 1) * nw_cuda_n_col + cl;
-                std::size_t vert = rw * nw_cuda_n_col + (cl - 1);
-
-                matrix[pos] = std::max({matrix[diag] + eps,
-                                        matrix[horz] + nw_cuda_gap,
-                                        matrix[vert] + nw_cuda_gap});
-            }
+            matrix[pos] = std::max({matrix[diag] + eps,
+                                    matrix[horz] + nw_cuda_gap,
+                                    matrix[vert] + nw_cuda_gap});
         }
     }
+}
 
-    __global__ void nw_cuda_score(int*        curr,
-                                  int*        hv,
-                                  int*        diag,
-                                  char const* ref,
-                                  char const* src)
+__global__ static void nw_cuda_score(int*        curr,
+                                     int*        hv,
+                                     int*        diag,
+                                     char const* ref,
+                                     char const* src)
+{
+    cg::grid_group grid   = cg::this_grid();
+    std::size_t    n_diag = nw_cuda_n_row + nw_cuda_n_col - 1;
+
+    for (std::size_t ad = 0; ad < n_diag; ++ad)
     {
-        cg::grid_group grid = cg::this_grid();
+        cg::sync(grid);
 
-        std::size_t n_diag = nw_cuda_n_row + nw_cuda_n_col - 1;
+        thrust::swap(diag, hv);
+        thrust::swap(hv, curr);
 
-        for (std::size_t ad = 0; ad < n_diag; ++ad)
+        std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
+        std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
+
+        std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
+
+        std::size_t top_row = rw;
+
+        rw += threadIdx.x + (blockIdx.x * blockDim.x);
+        cl -= (blockIdx.x * blockDim.x + threadIdx.x);
+
+        if (rw - top_row >= n_vect)
         {
-            cg::sync(grid);
+            continue;
+        }
 
-            thrust::swap(diag, hv);
-            thrust::swap(hv, curr);
+        if (rw == 0 || cl == 0)
+        {
+            curr[rw] = (rw + cl) * nw_cuda_gap;
+        }
+        else
+        {
+            int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
 
-            std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
-            std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
-
-            std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
-
-            std::size_t top_row = rw;
-
-            rw += threadIdx.x + (blockIdx.x * blockDim.x);
-            cl -= (blockIdx.x * blockDim.x + threadIdx.x);
-
-            if (rw - top_row >= n_vect)
-            {
-                continue;
-            }
-
-            if (rw == 0 || cl == 0)
-            {
-                curr[rw] = (rw + cl) * nw_cuda_gap;
-            }
-            else
-            {
-                int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
-
-                curr[rw] = std::max({diag[rw - 1] + eps,
-                                     hv[rw - 1] + nw_cuda_gap,
-                                     hv[rw] + nw_cuda_gap});
-            }
+            curr[rw] = std::max({diag[rw - 1] + eps,
+                                 hv[rw - 1] + nw_cuda_gap,
+                                 hv[rw] + nw_cuda_gap});
         }
     }
 }
