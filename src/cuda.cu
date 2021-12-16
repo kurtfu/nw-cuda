@@ -56,8 +56,8 @@ __global__ static void nw_cuda_fill(int*        matrix,
 
         std::size_t top_row = rw;
 
-        rw += threadIdx.x + (blockIdx.x * blockDim.x);
-        cl -= (blockIdx.x * blockDim.x + threadIdx.x);
+        rw += grid.thread_rank();
+        cl -= grid.thread_rank();
 
         if (rw - top_row >= n_vect)
         {
@@ -108,8 +108,8 @@ __global__ static void nw_cuda_score(int*        curr,
 
         std::size_t top_row = rw;
 
-        rw += threadIdx.x + (blockIdx.x * blockDim.x);
-        cl -= (blockIdx.x * blockDim.x + threadIdx.x);
+        rw += grid.thread_rank();
+        cl -= grid.thread_rank();
 
         if (rw - top_row >= n_vect)
         {
