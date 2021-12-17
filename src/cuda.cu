@@ -279,11 +279,16 @@ int cuda::score(std::string const& ref, std::string const& src)
 
 std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
 {
-    std::size_t n_block = n_vect / max_thread_per_block;
-    n_block             = (n_vect % max_thread_per_block) ? n_block + 1 : n_block;
+    std::size_t n_block = (n_vect % max_thread_per_block) ? 1 : 0;
+    n_block += n_vect / max_thread_per_block;
 
-    std::size_t n_thread = n_vect / n_block;
-    n_thread             = (n_vect % n_block) ? n_thread + 1 : n_thread;
+    if (n_block > multiprocessor_count)
+    {
+        n_block = multiprocessor_count;
+    }
+
+    std::size_t n_thread = (n_vect % n_block) ? 1 : 0;
+    n_thread += n_vect / n_block;
 
     if (n_thread % warp_size)
     {
