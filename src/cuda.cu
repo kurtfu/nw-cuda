@@ -137,6 +137,18 @@ __global__ static void nw_cuda_score(int*        curr,
 
 cuda::cuda(int match, int miss, int gap)
 {
+    int dev;
+    cudaGetDevice(&dev);
+
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, dev);
+
+    warp_size            = prop.warpSize;
+    multiprocessor_count = prop.multiProcessorCount;
+
+    max_thread_per_block          = prop.maxThreadsPerBlock;
+    max_thread_per_multiprocessor = prop.maxThreadsPerMultiProcessor;
+
     this->match = match;
     this->miss  = miss;
     this->gap   = gap;
@@ -267,9 +279,6 @@ int cuda::score(std::string const& ref, std::string const& src)
 
 std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
 {
-    constexpr std::size_t max_thread_per_block = 1024;
-    constexpr std::size_t warp_size            = 32;
-
     std::size_t n_block = n_vect / max_thread_per_block;
     n_block             = (n_vect % max_thread_per_block) ? n_block + 1 : n_block;
 
