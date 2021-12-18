@@ -175,8 +175,8 @@ std::size_t cuda::col_count() const
 
 void cuda::fill(std::string const& ref, std::string const& src)
 {
-    std::size_t n_row = std::min(ref.size(), src.size()) + 1;
-    std::size_t n_col = std::max(ref.size(), src.size()) + 1;
+    std::size_t n_row = src.size() + 1;
+    std::size_t n_col = ref.size() + 1;
 
     if (n_row * n_col > this->n_row * this->n_col)
     {
@@ -207,7 +207,7 @@ void cuda::fill(std::string const& ref, std::string const& src)
     cudaMalloc(&d_src, src.size());
     cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyHostToDevice);
 
-    auto dimension = align_dimension(n_row);
+    auto dimension = align_dimension(std::min(n_row, n_col));
 
     std::size_t n_block  = dimension.first;
     std::size_t n_thread = dimension.second;
@@ -227,19 +227,21 @@ void cuda::fill(std::string const& ref, std::string const& src)
 
 int cuda::score(std::string const& ref, std::string const& src)
 {
-    std::size_t n_row = std::min(ref.size(), src.size()) + 1;
-    std::size_t n_col = std::max(ref.size(), src.size()) + 1;
+    std::size_t n_row = src.size() + 1;
+    std::size_t n_col = ref.size() + 1;
 
     cudaMemcpyToSymbol(nw_cuda_n_row, &n_row, sizeof(std::size_t));
     cudaMemcpyToSymbol(nw_cuda_n_col, &n_col, sizeof(std::size_t));
+
+    std::size_t n_nect = std::min(n_row, n_col);
 
     int* d_curr;
     int* d_hv;
     int* d_diag;
 
-    cudaMalloc(&d_curr, n_row * sizeof(int));
-    cudaMalloc(&d_hv, n_row * sizeof(int));
-    cudaMalloc(&d_diag, n_row * sizeof(int));
+    cudaMalloc(&d_curr, n_nect * sizeof(int));
+    cudaMalloc(&d_hv, n_nect * sizeof(int));
+    cudaMalloc(&d_diag, n_nect * sizeof(int));
 
     char* d_ref;
     char* d_src;
@@ -250,7 +252,7 @@ int cuda::score(std::string const& ref, std::string const& src)
     cudaMalloc(&d_src, src.size());
     cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyHostToDevice);
 
-    auto dimension = align_dimension(n_row);
+    auto dimension = align_dimension(n_nect);
 
     std::size_t n_block  = dimension.first;
     std::size_t n_thread = dimension.second;
