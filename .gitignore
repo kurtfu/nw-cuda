@@ -47,3 +47,5 @@ log/
 !.gitconfig
 !.gitignore
 !.gitmodules
+
+!.clang-format

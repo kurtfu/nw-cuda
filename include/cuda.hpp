@@ -25,7 +25,16 @@ namespace nw
         int& operator()(std::vector<int>::size_type rw, std::vector<int>::size_type cl) override;
 
         void fill(std::string const& ref, std::string const& src) override;
-        int score(std::string const& ref, std::string const& src) override;
+        int  score(std::string const& ref, std::string const& src) override;
+
+    private:
+        std::pair<std::size_t, std::size_t> align_dimension(std::size_t n_vect);
+
+        int warp_size;
+        int multiprocessor_count;
+
+        int max_thread_per_block;
+        int max_thread_per_multiprocessor;
     };
 }
 

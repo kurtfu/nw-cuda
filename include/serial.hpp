@@ -25,7 +25,7 @@ namespace nw
         int& operator()(std::vector<int>::size_type rw, std::vector<int>::size_type cl) override;
 
         void fill(std::string const& ref, std::string const& src) override;
-        int score(std::string const& ref, std::string const& src) override;
+        int  score(std::string const& ref, std::string const& src) override;
     };
 }
 
