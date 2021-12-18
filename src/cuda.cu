@@ -38,6 +38,67 @@ namespace
 /*  DEVICE KERNELS                                                           */
 /*****************************************************************************/
 
+__device__ static void nw_cuda_fill_cell(std::size_t rw,
+                                         std::size_t cl,
+                                         int*        curr,
+                                         int*        hv,
+                                         int*        diag,
+                                         char const* ref,
+                                         char const* src)
+{
+    cg::grid_group grid   = cg::this_grid();
+    std::size_t    n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
+
+    std::size_t top_row = rw;
+
+    rw += grid.thread_rank();
+    cl -= grid.thread_rank();
+
+    if (rw - top_row >= n_vect)
+    {
+        return;
+    }
+
+    if (rw == 0 || cl == 0)
+    {
+        curr[rw] = (rw + cl) * nw_cuda_gap;
+    }
+    else
+    {
+        int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
+
+        curr[rw] = std::max({diag[rw - 1] + eps,
+                             hv[rw - 1] + nw_cuda_gap,
+                             hv[rw] + nw_cuda_gap});
+    }
+}
+
+__device__ static void nw_cuda_fill_subad(std::size_t ad,
+                                          int*        curr,
+                                          int*        hv,
+                                          int*        diag,
+                                          char const* ref,
+                                          char const* src)
+{
+    cg::grid_group grid = cg::this_grid();
+
+    std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
+    std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
+
+    std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
+
+    std::size_t n_iter = (n_vect % grid.size()) ? 1 : 0;
+    n_iter += n_vect / grid.size();
+
+    for (std::size_t iter = 0; iter < n_iter; ++iter)
+    {
+        nw_cuda_fill_cell(rw, cl, curr, hv, diag, ref, src);
+
+        rw += grid.size();
+        cl -= grid.size();
+    }
+}
+
 __global__ static void nw_cuda_fill(int*        matrix,
                                     char const* ref,
                                     char const* src)
@@ -101,33 +162,7 @@ __global__ static void nw_cuda_score(int*        curr,
         thrust::swap(diag, hv);
         thrust::swap(hv, curr);
 
-        std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
-        std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
-
-        std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
-
-        std::size_t top_row = rw;
-
-        rw += grid.thread_rank();
-        cl -= grid.thread_rank();
-
-        if (rw - top_row >= n_vect)
-        {
-            continue;
-        }
-
-        if (rw == 0 || cl == 0)
-        {
-            curr[rw] = (rw + cl) * nw_cuda_gap;
-        }
-        else
-        {
-            int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
-
-            curr[rw] = std::max({diag[rw - 1] + eps,
-                                 hv[rw - 1] + nw_cuda_gap,
-                                 hv[rw] + nw_cuda_gap});
-        }
+        nw_cuda_fill_subad(ad, curr, hv, diag, ref, src);
     }
 }
 
