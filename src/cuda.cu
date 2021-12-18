@@ -268,15 +268,15 @@ int cuda::score(std::string const& ref, std::string const& src)
     cudaMemcpyToSymbol(nw_cuda_n_row, &n_row, sizeof(std::size_t));
     cudaMemcpyToSymbol(nw_cuda_n_col, &n_col, sizeof(std::size_t));
 
-    std::size_t n_nect = std::min(n_row, n_col);
+    std::size_t n_vect = std::min(n_row, n_col);
 
     int* d_curr;
     int* d_hv;
     int* d_diag;
 
-    cudaMalloc(&d_curr, n_nect * sizeof(int));
-    cudaMalloc(&d_hv, n_nect * sizeof(int));
-    cudaMalloc(&d_diag, n_nect * sizeof(int));
+    cudaMalloc(&d_curr, n_vect * sizeof(int));
+    cudaMalloc(&d_hv, n_vect * sizeof(int));
+    cudaMalloc(&d_diag, n_vect * sizeof(int));
 
     char* d_ref;
     char* d_src;
@@ -287,7 +287,7 @@ int cuda::score(std::string const& ref, std::string const& src)
     cudaMalloc(&d_src, src.size());
     cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyHostToDevice);
 
-    auto dimension = align_dimension(n_nect);
+    auto dimension = align_dimension(n_vect);
 
     std::size_t n_block  = dimension.first;
     std::size_t n_thread = dimension.second;
