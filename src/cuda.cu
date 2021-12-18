@@ -295,5 +295,10 @@ std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
         n_thread = ((n_thread / warp_size) + 1) * warp_size;
     }
 
+    if (n_thread > max_thread_per_multiprocessor)
+    {
+        n_thread = max_thread_per_multiprocessor;
+    }
+
     return std::make_pair(n_block, n_thread);
 }
