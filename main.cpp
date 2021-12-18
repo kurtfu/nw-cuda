@@ -63,6 +63,12 @@ int main(int argc, char const* argv[])
     std::ifstream input(*(samples + 1));
     std::ofstream output(*(log + 1));
 
+    if (input.is_open() == false)
+    {
+        std::cerr << *(samples + 1) << " is not a valid input\n";
+        return -1;
+    }
+
     std::string line;
 
     while (std::getline(input, line))
