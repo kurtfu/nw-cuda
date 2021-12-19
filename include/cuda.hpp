@@ -29,6 +29,7 @@ namespace nw
 
     private:
         std::pair<std::size_t, std::size_t> align_dimension(std::size_t n_vect);
+        void copy_diag(std::size_t ad, int* diag);
 
         int warp_size;
         int multiprocessor_count;
