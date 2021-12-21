@@ -59,17 +59,19 @@ __device__ static void nw_cuda_fill_cell(std::size_t rw,
         return;
     }
 
+    std::size_t pos = (nw_cuda_n_row <= nw_cuda_n_col) ? rw : n_vect - cl - 1;
+
     if (rw == 0 || cl == 0)
     {
-        curr[rw] = (rw + cl) * nw_cuda_gap;
+        curr[pos] = (rw + cl) * nw_cuda_gap;
     }
     else
     {
         int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
 
-        curr[rw] = std::max({diag[rw - 1] + eps,
-                             hv[rw - 1] + nw_cuda_gap,
-                             hv[rw] + nw_cuda_gap});
+        curr[pos] = std::max({diag[pos - 1] + eps,
+                              hv[pos - 1] + nw_cuda_gap,
+                              hv[pos] + nw_cuda_gap});
     }
 }
 
@@ -121,17 +123,19 @@ __global__ static void nw_cuda_fill(std::size_t ad,
         return;
     }
 
+    std::size_t pos = (nw_cuda_n_row <= nw_cuda_n_col) ? rw : n_vect - cl - 1;
+
     if (rw == 0 || cl == 0)
     {
-        curr[rw] = (rw + cl) * nw_cuda_gap;
+        curr[pos] = (rw + cl) * nw_cuda_gap;
     }
     else
     {
         int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
 
-        curr[rw] = std::max({diag[rw - 1] + eps,
-                             hv[rw - 1] + nw_cuda_gap,
-                             hv[rw] + nw_cuda_gap});
+        curr[pos] = std::max({diag[pos - 1] + eps,
+                              hv[pos - 1] + nw_cuda_gap,
+                              hv[pos] + nw_cuda_gap});
     }
 }
 
@@ -184,7 +188,41 @@ cuda::cuda(int match, int miss, int gap)
 
 int& cuda::operator()(std::vector<int>::size_type rw, std::vector<int>::size_type cl)
 {
-    return matrix[rw * n_col + cl];
+    std::size_t upper_line = std::min(n_row, n_col);
+    std::size_t lower_line = std::max(n_row, n_col) - 1;
+
+    std::size_t ad = rw + cl;
+
+    std::size_t pos;
+    std::size_t offset;
+
+    if (ad < upper_line)
+    {
+        pos    = ad * (ad + 1) / 2;
+        offset = rw;
+    }
+    else if (ad < lower_line)
+    {
+        std::size_t n_vect = std::min(n_row, n_col);
+
+        pos = upper_line * (upper_line + 1) / 2;
+        pos += (ad - upper_line) * n_vect;
+
+        offset = (n_row < n_col) ? rw : n_col - cl - 1;
+    }
+    else
+    {
+        std::size_t n_diag = n_row + n_col - 1;
+
+        ad = n_diag - ad;
+
+        pos = (n_row * n_col) - 1;
+        pos -= (ad * (ad + 1) / 2);
+
+        offset = (n_row < n_col) ? rw : n_col - cl;
+    }
+
+    return matrix[pos + offset];
 }
 
 std::size_t cuda::row_count() const
@@ -237,10 +275,16 @@ void cuda::fill(std::string const& ref, std::string const& src)
     cudaMalloc(&d_src, src.size());
     cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyHostToDevice);
 
-    auto dimension = align_dimension(n_vect);
+    std::size_t n_block = (n_vect % max_thread_per_block) ? 1 : 0;
+    n_block += n_vect / max_thread_per_block;
 
-    std::size_t n_block  = dimension.first;
-    std::size_t n_thread = dimension.second;
+    std::size_t n_thread = (n_vect % n_block) ? 1 : 0;
+    n_thread += n_vect / n_block;
+
+    if (n_thread % warp_size)
+    {
+        n_thread = ((n_thread / warp_size) + 1) * warp_size;
+    }
 
     std::size_t n_diag = n_row + n_col - 1;
 
@@ -348,16 +392,8 @@ void cuda::copy_diag(std::size_t ad, int* diag)
     std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
     std::size_t cl = (ad < n_col) ? ad : n_col - 1;
 
-    std::size_t      n_vect = std::min(n_row - rw, cl + 1);
-    std::vector<int> tmp(n_vect);
+    std::size_t n_diag = std::min(n_row - rw, cl + 1);
+    std::size_t pos    = (n_row <= n_col) ? rw : n_diag - cl - 1;
 
-    cudaMemcpy(&tmp[0], &diag[rw], n_vect * sizeof(int), cudaMemcpyDeviceToHost);
-
-    for (auto const& val : tmp)
-    {
-        (*this)(rw, cl) = val;
-
-        ++rw;
-        --cl;
-    }
+    cudaMemcpy(&(*this)(rw, cl), &diag[pos], n_diag * sizeof(int), cudaMemcpyDeviceToHost);
 }
