@@ -75,12 +75,12 @@ __device__ static void nw_cuda_fill_cell(std::size_t rw,
     }
 }
 
-__device__ static void nw_cuda_fill_subad(std::size_t ad,
-                                          int*        curr,
-                                          int*        hv,
-                                          int*        diag,
-                                          char const* ref,
-                                          char const* src)
+__device__ static void nw_cuda_fill_ad(std::size_t ad,
+                                       int*        curr,
+                                       int*        hv,
+                                       int*        diag,
+                                       char const* ref,
+                                       char const* src)
 {
     cg::grid_group grid = cg::this_grid();
 
@@ -155,7 +155,7 @@ __global__ static void nw_cuda_score(int*        curr,
         thrust::swap(diag, hv);
         thrust::swap(hv, curr);
 
-        nw_cuda_fill_subad(ad, curr, hv, diag, ref, src);
+        nw_cuda_fill_ad(ad, curr, hv, diag, ref, src);
     }
 }
 
