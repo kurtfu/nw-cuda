@@ -59,17 +59,19 @@ __device__ static void nw_cuda_fill_cell(std::size_t rw,
         return;
     }
 
+    std::size_t pos = (nw_cuda_n_row <= nw_cuda_n_col) ? rw : n_vect - cl - 1;
+
     if (rw == 0 || cl == 0)
     {
-        curr[rw] = (rw + cl) * nw_cuda_gap;
+        curr[pos] = (rw + cl) * nw_cuda_gap;
     }
     else
     {
         int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
 
-        curr[rw] = std::max({diag[rw - 1] + eps,
-                             hv[rw - 1] + nw_cuda_gap,
-                             hv[rw] + nw_cuda_gap});
+        curr[pos] = std::max({diag[pos - 1] + eps,
+                              hv[pos - 1] + nw_cuda_gap,
+                              hv[pos] + nw_cuda_gap});
     }
 }
 
@@ -121,17 +123,19 @@ __global__ static void nw_cuda_fill(std::size_t ad,
         return;
     }
 
+    std::size_t pos = (nw_cuda_n_row <= nw_cuda_n_col) ? rw : n_vect - cl - 1;
+
     if (rw == 0 || cl == 0)
     {
-        curr[rw] = (rw + cl) * nw_cuda_gap;
+        curr[pos] = (rw + cl) * nw_cuda_gap;
     }
     else
     {
         int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
 
-        curr[rw] = std::max({diag[rw - 1] + eps,
-                             hv[rw - 1] + nw_cuda_gap,
-                             hv[rw] + nw_cuda_gap});
+        curr[pos] = std::max({diag[pos - 1] + eps,
+                              hv[pos - 1] + nw_cuda_gap,
+                              hv[pos] + nw_cuda_gap});
     }
 }
 
