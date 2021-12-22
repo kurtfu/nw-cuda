@@ -398,6 +398,27 @@ void cuda::copy_diag(std::size_t ad, int* diag)
     cudaMemcpy(&(*this)(rw, cl), &diag[pos], n_diag * sizeof(int), cudaMemcpyDeviceToHost);
 }
 
+std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
+{
+    std::size_t n_diag = n_row + n_col - 1;
+
+    std::size_t end   = start + 1;
+    std::size_t total = 0;
+
+    while (end < n_diag && total < payload)
+    {
+        std::size_t rw = (end < n_col) ? 0 : end - n_col + 1;
+        std::size_t cl = (end < n_col) ? end : n_col - 1;
+
+        std::size_t n_vect = std::min(n_row - rw, cl + 1);
+
+        total += n_vect;
+        ++end;
+    }
+
+    return end;
+}
+
 std::size_t cuda::partition_payload()
 {
     static constexpr std::size_t exec_time  = 8;
