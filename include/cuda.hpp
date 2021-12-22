@@ -33,6 +33,7 @@ namespace nw
         void copy_diag(std::size_t ad, int* diag);
 
         std::size_t find_submatrix_end(std::size_t start, std::size_t payload);
+        std::size_t find_submatrix_size(std::size_t start, std::size_t end);
         std::size_t partition_payload();
 
         int warp_size;

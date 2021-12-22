@@ -419,6 +419,55 @@ std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
     return end;
 }
 
+std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
+{
+    std::size_t upper_line = std::min(n_row, n_col);
+    std::size_t lower_line = std::max(n_row, n_col);
+
+    std::size_t n_diag = n_row + n_col - 1;
+
+    std::size_t size = n_row * n_col;
+
+    if (start < upper_line)
+    {
+        size -= (start * (start + 1)) / 2;
+    }
+    else if (start < lower_line)
+    {
+        std::size_t n_vect = std::min(n_row, n_col);
+
+        size -= (upper_line * (upper_line + 1) / 2);
+        size -= (start - upper_line) * n_vect;
+    }
+    else
+    {
+        start = n_diag - start;
+        size  = (start * (start + 1)) / 2;
+    }
+
+    if (end < upper_line)
+    {
+        size = (end * (end + 1)) / 2;
+        size -= (start * (start + 1)) / 2;
+    }
+    else if (end < lower_line)
+    {
+        std::size_t n_vect = std::min(n_row, n_col);
+
+        size -= (lower_line - end) * n_vect;
+
+        end = n_diag - end;
+        size -= (end * (end + 1)) / 2;
+    }
+    else
+    {
+        end = n_diag - end;
+        size -= (end * (end + 1)) / 2;
+    }
+
+    return size;
+}
+
 std::size_t cuda::partition_payload()
 {
     static constexpr std::size_t exec_time  = 8;
