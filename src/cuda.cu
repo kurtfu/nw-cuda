@@ -52,10 +52,31 @@ __device__ static void nw_cuda_fill_cell(std::size_t rw,
     }
     else
     {
+        std::size_t lower_line = std::max(nw_cuda_n_row, nw_cuda_n_col);
+
+        int diag_offset;
+        int hv_offset;
+
+        if (rw + cl < lower_line)
+        {
+            diag_offset = -1;
+            hv_offset   = -1;
+        }
+        else if (rw + cl == lower_line)
+        {
+            diag_offset = 0;
+            hv_offset   = 1;
+        }
+        else
+        {
+            diag_offset = 1;
+            hv_offset   = 1;
+        }
+
         int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
 
-        *curr = std::max({*(diag - 1) + eps,
-                          *(hv - 1) + nw_cuda_gap,
+        *curr = std::max({*(diag + diag_offset) + eps,
+                          *(hv + hv_offset) + nw_cuda_gap,
                           *hv + nw_cuda_gap});
     }
 }
@@ -80,7 +101,7 @@ __device__ static void nw_cuda_fill_ad(std::size_t ad,
 
     while (rw - top_row < n_vect)
     {
-        std::size_t pos = (nw_cuda_n_row <= nw_cuda_n_col) ? rw : n_vect - cl - 1;
+        std::size_t pos = rw - top_row;
 
         nw_cuda_fill_cell(rw, cl, &curr[pos], &hv[pos], &diag[pos], ref, src);
 
@@ -333,7 +354,7 @@ int cuda::score(std::string const& ref, std::string const& src)
     cudaDeviceSynchronize();
 
     int score;
-    cudaMemcpy(&score, &d_curr[n_row - 1], sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&score, d_curr, sizeof(int), cudaMemcpyDeviceToHost);
 
     cudaFree(d_src);
     cudaFree(d_ref);
