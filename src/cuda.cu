@@ -189,7 +189,7 @@ cuda::cuda(int match, int miss, int gap)
 int& cuda::operator()(std::vector<int>::size_type rw, std::vector<int>::size_type cl)
 {
     std::size_t upper_line = std::min(n_row, n_col);
-    std::size_t lower_line = std::max(n_row, n_col) - 1;
+    std::size_t lower_line = std::max(n_row, n_col);
 
     std::size_t ad = rw + cl;
 
