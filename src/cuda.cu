@@ -39,7 +39,7 @@ namespace
 /*****************************************************************************/
 
 __device__ static void nw_cuda_copy_ad(int*        dst,
-                                       int*        src,
+                                       int const*  src,
                                        std::size_t size)
 {
     cg::grid_group grid = cg::this_grid();
@@ -56,8 +56,8 @@ __device__ static void nw_cuda_copy_ad(int*        dst,
 __device__ static void nw_cuda_fill_cell(std::size_t rw,
                                          std::size_t cl,
                                          int*        curr,
-                                         int*        hv,
-                                         int*        diag,
+                                         int const*  hv,
+                                         int const*  diag,
                                          char const* ref,
                                          char const* src)
 {
@@ -98,8 +98,8 @@ __device__ static void nw_cuda_fill_cell(std::size_t rw,
 
 __device__ static void nw_cuda_fill_ad(std::size_t ad,
                                        int*        curr,
-                                       int*        hv,
-                                       int*        diag,
+                                       int const*  hv,
+                                       int const*  diag,
                                        char const* ref,
                                        char const* src)
 {
