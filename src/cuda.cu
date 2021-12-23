@@ -125,42 +125,41 @@ __device__ static void nw_cuda_fill_ad(std::size_t ad,
     }
 }
 
-__global__ static void nw_cuda_fill(std::size_t ad,
+__global__ static void nw_cuda_fill(std::size_t start,
+                                    std::size_t end,
                                     int*        curr,
                                     int*        hv,
                                     int*        diag,
                                     char const* ref,
                                     char const* src)
 {
-    std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
-    std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
+    cg::grid_group grid = cg::this_grid();
 
-    std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
+    int* d_hv   = hv;
+    int* d_diag = diag;
 
-    std::size_t top_row = rw;
-
-    rw += (blockIdx.x * blockDim.x + threadIdx.x);
-    cl -= (blockIdx.x * blockDim.x + threadIdx.x);
-
-    if (rw - top_row >= n_vect)
+    auto ad_length = [](std::size_t ad)
     {
-        return;
+        std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
+        std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
+
+        return std::min(nw_cuda_n_row - rw, cl + 1);
+    };
+
+    for (std::size_t ad = start; ad < end; ++ad)
+    {
+        cg::sync(grid);
+
+        nw_cuda_fill_ad(ad, curr, hv, diag, ref, src);
+
+        diag = hv;
+        hv   = curr;
+
+        curr += ad_length(ad);
     }
 
-    std::size_t pos = (nw_cuda_n_row <= nw_cuda_n_col) ? rw : n_vect - cl - 1;
-
-    if (rw == 0 || cl == 0)
-    {
-        curr[pos] = (rw + cl) * nw_cuda_gap;
-    }
-    else
-    {
-        int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
-
-        curr[pos] = std::max({diag[pos - 1] + eps,
-                              hv[pos - 1] + nw_cuda_gap,
-                              hv[pos] + nw_cuda_gap});
-    }
+    nw_cuda_copy_ad(d_diag, diag, ad_length(end - 2));
+    nw_cuda_copy_ad(d_hv, hv, ad_length(end - 1));
 }
 
 __global__ static void nw_cuda_score(int*        curr,
@@ -280,13 +279,29 @@ void cuda::fill(std::string const& ref, std::string const& src)
     cudaMemcpyToSymbol(nw_cuda_n_row, &n_row, sizeof(std::size_t));
     cudaMemcpyToSymbol(nw_cuda_n_col, &n_col, sizeof(std::size_t));
 
-    std::size_t n_vect = std::min(n_row, n_col);
+    std::size_t n_vect  = std::min(n_row, n_col);
+    std::size_t payload = partition_payload();
+
+    std::size_t size;
+
+    if (payload > n_vect)
+    {
+        size = payload / n_vect;
+        size += (payload % n_vect) ? 1 : 0;
+    }
+    else
+    {
+        size = n_vect / payload;
+        size += (n_vect % payload) ? 1 : 0;
+    }
+
+    size *= n_vect;
 
     int* d_curr;
     int* d_hv;
     int* d_diag;
 
-    cudaMallocHost(&d_curr, n_vect * sizeof(int));
+    cudaMallocHost(&d_curr, size * sizeof(int));
     cudaMallocHost(&d_hv, n_vect * sizeof(int));
     cudaMallocHost(&d_diag, n_vect * sizeof(int));
 
@@ -299,28 +314,25 @@ void cuda::fill(std::string const& ref, std::string const& src)
     cudaMalloc(&d_src, src.size());
     cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyHostToDevice);
 
-    std::size_t n_block = (n_vect % max_thread_per_block) ? 1 : 0;
-    n_block += n_vect / max_thread_per_block;
+    auto dimension = align_dimension(n_vect);
 
-    std::size_t n_thread = (n_vect % n_block) ? 1 : 0;
-    n_thread += n_vect / n_block;
-
-    if (n_thread % warp_size)
-    {
-        n_thread = ((n_thread / warp_size) + 1) * warp_size;
-    }
+    std::size_t n_block  = dimension.first;
+    std::size_t n_thread = dimension.second;
 
     std::size_t n_diag = n_row + n_col - 1;
 
-    for (std::size_t ad = 0; ad < n_diag; ++ad)
+    for (std::size_t ad = 0; ad < n_diag;)
     {
-        nw_cuda_fill<<<n_block, n_thread>>>(ad, d_curr, d_hv, d_diag, d_ref, d_src);
+        std::size_t end = find_submatrix_end(ad, payload);
+
+        void* args[] = {&ad, &end, &d_curr, &d_hv, &d_diag, &d_ref, &d_src};
+
+        cudaLaunchCooperativeKernel((void*)nw_cuda_fill, n_block, n_thread, args);
         cudaDeviceSynchronize();
 
-        copy_diag(ad, d_curr);
+        copy_submatrix(d_curr, ad, end);
 
-        std::swap(d_diag, d_hv);
-        std::swap(d_hv, d_curr);
+        ad = end;
     }
 
     cudaFree(d_src);
