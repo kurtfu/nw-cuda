@@ -411,15 +411,14 @@ std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
     return std::make_pair(n_block, n_thread);
 }
 
-void cuda::copy_diag(std::size_t ad, int* diag)
+void cuda::copy_submatrix(int* matrix, std::size_t start, std::size_t end)
 {
-    std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t cl = (ad < n_col) ? ad : n_col - 1;
+    std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
+    std::size_t cl = (start < n_col) ? start : n_col - 1;
 
-    std::size_t n_diag = std::min(n_row - rw, cl + 1);
-    std::size_t pos    = (n_row <= n_col) ? rw : n_diag - cl - 1;
+    std::size_t size = find_submatrix_size(start, end);
 
-    cudaMemcpy(&(*this)(rw, cl), &diag[pos], n_diag * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&(*this)(rw, cl), matrix, size * sizeof(int), cudaMemcpyDeviceToHost);
 }
 
 std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
