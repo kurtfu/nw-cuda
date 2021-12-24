@@ -45,12 +45,11 @@ __device__ static void nw_cuda_copy_ad(int*        dst,
     cg::grid_group grid = cg::this_grid();
     std::size_t    pos  = grid.thread_rank();
 
-    if (pos >= size)
+    while (pos < size)
     {
-        return;
+        dst[pos] = src[pos];
+        pos += grid.size();
     }
-
-    dst[pos] = src[pos];
 }
 
 __device__ static void nw_cuda_fill_cell(std::size_t rw,
