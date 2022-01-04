@@ -208,7 +208,7 @@ cuda::cuda(int match, int miss, int gap)
     cudaMemcpyToSymbol(nw_cuda_gap, &gap, sizeof(int));
 }
 
-int& cuda::operator()(std::vector<int>::size_type rw, std::vector<int>::size_type cl)
+int& cuda::operator()(std::size_t rw, std::size_t cl)
 {
     std::size_t upper_line = std::min(n_row, n_col);
     std::size_t lower_line = std::max(n_row, n_col);

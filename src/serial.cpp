@@ -22,7 +22,7 @@ serial::serial(int match, int miss, int gap)
     this->gap   = gap;
 }
 
-int& serial::operator()(std::vector<int>::size_type rw, std::vector<int>::size_type cl)
+int& serial::operator()(std::size_t rw, std::size_t cl)
 {
     return matrix[rw * n_col + cl];
 }
