@@ -19,6 +19,14 @@
 using test_signature = void(nw::algo, std::ifstream&, std::ofstream&);
 
 /*****************************************************************************/
+/*  MODULE VARIABLES                                                         */
+/*****************************************************************************/
+
+constexpr int match = 1;
+constexpr int miss  = -1;
+constexpr int gap   = -2;
+
+/*****************************************************************************/
 /*  TEST FUNCTIONS                                                           */
 /*****************************************************************************/
 
@@ -37,7 +45,7 @@ void fill(nw::algo algo, std::ifstream& input, std::ofstream& output)
 
         auto begin = std::chrono::high_resolution_clock::now();
 
-        auto nw = nw::creator::create(algo, 1, -1, -2);
+        auto nw = nw::creator::create(algo, match, miss, gap);
         nw->fill(ref, src);
 
         auto end     = std::chrono::high_resolution_clock::now();
@@ -66,7 +74,7 @@ void score(nw::algo algo, std::ifstream& input, std::ofstream& output)
 
         auto begin = std::chrono::high_resolution_clock::now();
 
-        auto nw    = nw::creator::create(algo, 1, -1, -2);
+        auto nw    = nw::creator::create(algo, match, miss, gap);
         int  score = nw->score(ref, src);
 
         auto end     = std::chrono::high_resolution_clock::now();
