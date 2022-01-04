@@ -315,8 +315,8 @@ void cuda::fill(std::string const& ref, std::string const& src)
 
     auto dimension = align_dimension(n_vect);
 
-    std::size_t n_block  = dimension.first;
-    std::size_t n_thread = dimension.second;
+    std::size_t grid  = dimension.first;
+    std::size_t block = dimension.second;
 
     std::size_t n_diag = n_row + n_col - 1;
 
@@ -326,7 +326,7 @@ void cuda::fill(std::string const& ref, std::string const& src)
 
         void* args[] = {&ad, &end, &d_curr, &d_hv, &d_diag, &d_ref, &d_src};
 
-        cudaLaunchCooperativeKernel((void*)nw_cuda_fill, n_block, n_thread, args);
+        cudaLaunchCooperativeKernel((void*)nw_cuda_fill, grid, block, args);
         cudaDeviceSynchronize();
 
         copy_submatrix(d_curr, ad, end);
@@ -371,12 +371,12 @@ int cuda::score(std::string const& ref, std::string const& src)
 
     auto dimension = align_dimension(n_vect);
 
-    std::size_t n_block  = dimension.first;
-    std::size_t n_thread = dimension.second;
+    std::size_t grid  = dimension.first;
+    std::size_t block = dimension.second;
 
     void* args[] = {&d_curr, &d_hv, &d_diag, &d_ref, &d_src};
 
-    cudaLaunchCooperativeKernel((void*)nw_cuda_score, n_block, n_thread, args);
+    cudaLaunchCooperativeKernel((void*)nw_cuda_score, grid, block, args);
     cudaDeviceSynchronize();
 
     int score;
