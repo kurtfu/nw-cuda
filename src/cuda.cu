@@ -308,10 +308,10 @@ void cuda::fill(std::string const& ref, std::string const& src)
     char* d_src;
 
     cudaMalloc(&d_ref, ref.size());
-    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyDefault);
 
     cudaMalloc(&d_src, src.size());
-    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyDefault);
 
     auto dimension = align_dimension(n_vect);
 
@@ -364,10 +364,10 @@ int cuda::score(std::string const& ref, std::string const& src)
     char* d_src;
 
     cudaMalloc(&d_ref, ref.size());
-    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyDefault);
 
     cudaMalloc(&d_src, src.size());
-    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyDefault);
 
     auto dimension = align_dimension(n_vect);
 
@@ -380,7 +380,7 @@ int cuda::score(std::string const& ref, std::string const& src)
     cudaDeviceSynchronize();
 
     int score;
-    cudaMemcpy(&score, d_curr, sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&score, d_curr, sizeof(int), cudaMemcpyDefault);
 
     cudaFree(d_src);
     cudaFree(d_ref);
@@ -429,7 +429,7 @@ void cuda::copy_submatrix(int* matrix, std::size_t start, std::size_t end)
 
     std::size_t size = find_submatrix_size(start, end);
 
-    cudaMemcpy(&(*this)(rw, cl), matrix, size * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&(*this)(rw, cl), matrix, size * sizeof(int), cudaMemcpyDefault);
 }
 
 std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
