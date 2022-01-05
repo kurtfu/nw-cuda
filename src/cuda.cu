@@ -281,26 +281,11 @@ void cuda::fill(std::string const& ref, std::string const& src)
     std::size_t n_vect  = std::min(n_row, n_col);
     std::size_t payload = partition_payload();
 
-    std::size_t size;
-
-    if (payload > n_vect)
-    {
-        size = payload / n_vect;
-        size += (payload % n_vect) ? 1 : 0;
-    }
-    else
-    {
-        size = n_vect / payload;
-        size += (n_vect % payload) ? 1 : 0;
-    }
-
-    size *= n_vect;
-
     int* d_curr;
     int* d_hv;
     int* d_diag;
 
-    cudaMallocHost(&d_curr, size * sizeof(int));
+    cudaMallocHost(&d_curr, 2 * payload * sizeof(int));
     cudaMallocHost(&d_hv, n_vect * sizeof(int));
     cudaMallocHost(&d_diag, n_vect * sizeof(int));
 
@@ -450,7 +435,7 @@ std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
         ++end;
     }
 
-    return end;
+    return (total > payload) ? end - 1 : end;
 }
 
 std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
@@ -524,5 +509,7 @@ std::size_t cuda::partition_payload()
         data_transfer_time = payload / throughput;
     }
 
-    return payload;
+    std::size_t max_vect = std::min(n_row, n_col);
+
+    return (payload > max_vect) ? payload : max_vect;
 }
