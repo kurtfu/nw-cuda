@@ -285,7 +285,7 @@ void cuda::fill(std::string const& ref, std::string const& src)
     int* d_hv;
     int* d_diag;
 
-    cudaMallocHost(&d_curr, 2 * payload * sizeof(int));
+    cudaMallocHost(&d_curr, payload * sizeof(int));
     cudaMallocHost(&d_hv, n_vect * sizeof(int));
     cudaMallocHost(&d_diag, n_vect * sizeof(int));
 
@@ -423,7 +423,7 @@ std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
 {
     std::size_t n_diag = n_row + n_col - 1;
 
-    std::size_t end   = start + 1;
+    std::size_t end   = start;
     std::size_t total = 0;
 
     while (end < n_diag && total < payload)
