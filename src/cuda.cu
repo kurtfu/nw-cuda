@@ -285,9 +285,9 @@ void cuda::fill(std::string const& ref, std::string const& src)
     int* d_hv;
     int* d_diag;
 
-    cudaMallocHost(&d_curr, payload * sizeof(int));
-    cudaMallocHost(&d_hv, n_vect * sizeof(int));
-    cudaMallocHost(&d_diag, n_vect * sizeof(int));
+    cudaMalloc(&d_curr, payload * sizeof(int));
+    cudaMalloc(&d_hv, n_vect * sizeof(int));
+    cudaMalloc(&d_diag, n_vect * sizeof(int));
 
     char* d_ref;
     char* d_src;
@@ -323,9 +323,9 @@ void cuda::fill(std::string const& ref, std::string const& src)
     cudaFree(d_src);
     cudaFree(d_ref);
 
-    cudaFreeHost(d_diag);
-    cudaFreeHost(d_hv);
-    cudaFreeHost(d_curr);
+    cudaFree(d_diag);
+    cudaFree(d_hv);
+    cudaFree(d_curr);
 }
 
 int cuda::score(std::string const& ref, std::string const& src)
