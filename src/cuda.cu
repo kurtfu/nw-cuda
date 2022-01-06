@@ -310,8 +310,9 @@ void cuda::fill(std::string const& ref, std::string const& src)
         std::size_t end = find_submatrix_end(ad, payload);
 
         void* args[] = {&ad, &end, &d_curr, &d_hv, &d_diag, &d_ref, &d_src};
+        void* kernel = nw_cuda_fill;
 
-        cudaLaunchCooperativeKernel((void*)nw_cuda_fill, grid, block, args);
+        cudaLaunchCooperativeKernel(kernel, grid, block, args);
         cudaDeviceSynchronize();
 
         copy_submatrix(d_curr, ad, end);
@@ -360,8 +361,9 @@ int cuda::score(std::string const& ref, std::string const& src)
     std::size_t block = dimension.second;
 
     void* args[] = {&d_curr, &d_hv, &d_diag, &d_ref, &d_src};
+    void* kernel = nw_cuda_score;
 
-    cudaLaunchCooperativeKernel((void*)nw_cuda_score, grid, block, args);
+    cudaLaunchCooperativeKernel(kernel, grid, block, args);
     cudaDeviceSynchronize();
 
     int score;
