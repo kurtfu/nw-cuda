@@ -288,8 +288,8 @@ void cuda::fill(std::string const& ref, std::string const& src)
 
     int* d_curr[2];
 
-    cudaMallocHost(&d_curr[0], payload * sizeof(int));
-    cudaMallocHost(&d_curr[1], payload * sizeof(int));
+    cudaMalloc(&d_curr[0], payload * sizeof(int));
+    cudaMalloc(&d_curr[1], payload * sizeof(int));
 
     int* d_hv;
     int* d_diag;
@@ -354,8 +354,8 @@ void cuda::fill(std::string const& ref, std::string const& src)
     cudaFree(d_diag);
     cudaFree(d_hv);
 
-    cudaFreeHost(d_curr[1]);
-    cudaFreeHost(d_curr[0]);
+    cudaFree(d_curr[1]);
+    cudaFree(d_curr[0]);
 
     cudaStreamDestroy(stream[1]);
     cudaStreamDestroy(stream[0]);
@@ -449,7 +449,7 @@ void cuda::copy_submatrix(int* matrix, std::size_t start, std::size_t end)
 
     std::size_t size = find_submatrix_size(start, end);
 
-    std::memcpy(&(*this)(rw, cl), matrix, size * sizeof(int));
+    cudaMemcpy(&(*this)(rw, cl), matrix, size * sizeof(int), cudaMemcpyDefault);
 }
 
 std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
