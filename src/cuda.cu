@@ -524,27 +524,11 @@ std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
 
 std::size_t cuda::partition_payload()
 {
-    static constexpr std::size_t exec_time  = 8;
-    static constexpr std::size_t throughput = 2048 / sizeof(int);
-
-    std::size_t n_diag = n_row + n_col - 1;
-    std::size_t n_val  = n_row * n_col;
-
-    std::size_t n_launch = 1;
-    std::size_t payload  = n_val / n_launch;
-
-    std::size_t total_exec_time    = (n_diag / n_launch) * exec_time;
-    std::size_t data_transfer_time = (payload / n_launch) / throughput;
-
-    while (total_exec_time < data_transfer_time && n_launch < n_diag)
-    {
-        payload = n_val / ++n_launch;
-
-        total_exec_time    = (n_diag / n_launch) * exec_time;
-        data_transfer_time = payload / throughput;
-    }
+    static constexpr std::size_t threshold = 100'000;
+    static constexpr std::size_t coeff     = 20;
 
     std::size_t max_vect = std::min(n_row, n_col);
+    std::size_t payload  = n_row * n_col;
 
-    return (payload > max_vect) ? payload : max_vect;
+    return (payload < threshold) ? payload : max_vect * coeff;
 }
