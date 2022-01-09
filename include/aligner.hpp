@@ -19,7 +19,7 @@ namespace nw
     public:
         virtual ~aligner() = default;
 
-        virtual int& operator()(std::vector<int>::size_type rw, std::vector<int>::size_type cl) = 0;
+        virtual int& operator()(std::size_t rw, std::size_t cl) = 0;
 
         virtual std::size_t row_count() const = 0;
         virtual std::size_t col_count() const = 0;

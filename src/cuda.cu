@@ -39,25 +39,24 @@ namespace
 /*****************************************************************************/
 
 __device__ static void nw_cuda_copy_ad(int*        dst,
-                                       int*        src,
+                                       int const*  src,
                                        std::size_t size)
 {
     cg::grid_group grid = cg::this_grid();
     std::size_t    pos  = grid.thread_rank();
 
-    if (pos >= size)
+    while (pos < size)
     {
-        return;
+        dst[pos] = src[pos];
+        pos += grid.size();
     }
-
-    dst[pos] = src[pos];
 }
 
 __device__ static void nw_cuda_fill_cell(std::size_t rw,
                                          std::size_t cl,
                                          int*        curr,
-                                         int*        hv,
-                                         int*        diag,
+                                         int const*  hv,
+                                         int const*  diag,
                                          char const* ref,
                                          char const* src)
 {
@@ -98,8 +97,8 @@ __device__ static void nw_cuda_fill_cell(std::size_t rw,
 
 __device__ static void nw_cuda_fill_ad(std::size_t ad,
                                        int*        curr,
-                                       int*        hv,
-                                       int*        diag,
+                                       int const*  hv,
+                                       int const*  diag,
                                        char const* ref,
                                        char const* src)
 {
@@ -125,8 +124,8 @@ __device__ static void nw_cuda_fill_ad(std::size_t ad,
     }
 }
 
-__global__ static void nw_cuda_fill(std::size_t start,
-                                    std::size_t end,
+__global__ static void nw_cuda_fill(std::size_t from,
+                                    std::size_t to,
                                     int*        curr,
                                     int*        hv,
                                     int*        diag,
@@ -146,7 +145,7 @@ __global__ static void nw_cuda_fill(std::size_t start,
         return std::min(nw_cuda_n_row - rw, cl + 1);
     };
 
-    for (std::size_t ad = start; ad < end; ++ad)
+    for (std::size_t ad = from; ad < to; ++ad)
     {
         cg::sync(grid);
 
@@ -158,8 +157,8 @@ __global__ static void nw_cuda_fill(std::size_t start,
         curr += ad_length(ad);
     }
 
-    nw_cuda_copy_ad(d_diag, diag, ad_length(end - 2));
-    nw_cuda_copy_ad(d_hv, hv, ad_length(end - 1));
+    nw_cuda_copy_ad(d_diag, diag, ad_length(to - 2));
+    nw_cuda_copy_ad(d_hv, hv, ad_length(to - 1));
 }
 
 __global__ static void nw_cuda_score(int*        curr,
@@ -209,7 +208,7 @@ cuda::cuda(int match, int miss, int gap)
     cudaMemcpyToSymbol(nw_cuda_gap, &gap, sizeof(int));
 }
 
-int& cuda::operator()(std::vector<int>::size_type rw, std::vector<int>::size_type cl)
+int& cuda::operator()(std::size_t rw, std::size_t cl)
 {
     std::size_t upper_line = std::min(n_row, n_col);
     std::size_t lower_line = std::max(n_row, n_col);
@@ -279,68 +278,87 @@ void cuda::fill(std::string const& ref, std::string const& src)
     cudaMemcpyToSymbol(nw_cuda_n_row, &n_row, sizeof(std::size_t));
     cudaMemcpyToSymbol(nw_cuda_n_col, &n_col, sizeof(std::size_t));
 
+    cudaStream_t stream[2];
+
+    cudaStreamCreate(&stream[0]);
+    cudaStreamCreate(&stream[1]);
+
     std::size_t n_vect  = std::min(n_row, n_col);
     std::size_t payload = partition_payload();
 
-    std::size_t size;
+    int* d_curr[2];
 
-    if (payload > n_vect)
-    {
-        size = payload / n_vect;
-        size += (payload % n_vect) ? 1 : 0;
-    }
-    else
-    {
-        size = n_vect / payload;
-        size += (n_vect % payload) ? 1 : 0;
-    }
+    cudaMalloc(&d_curr[0], payload * sizeof(int));
+    cudaMalloc(&d_curr[1], payload * sizeof(int));
 
-    size *= n_vect;
-
-    int* d_curr;
     int* d_hv;
     int* d_diag;
 
-    cudaMallocHost(&d_curr, size * sizeof(int));
-    cudaMallocHost(&d_hv, n_vect * sizeof(int));
-    cudaMallocHost(&d_diag, n_vect * sizeof(int));
+    cudaMalloc(&d_hv, n_vect * sizeof(int));
+    cudaMalloc(&d_diag, n_vect * sizeof(int));
 
     char* d_ref;
     char* d_src;
 
     cudaMalloc(&d_ref, ref.size());
-    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyDefault);
 
     cudaMalloc(&d_src, src.size());
-    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyDefault);
 
     auto dimension = align_dimension(n_vect);
 
-    std::size_t n_block  = dimension.first;
-    std::size_t n_thread = dimension.second;
+    std::size_t grid  = dimension.first;
+    std::size_t block = dimension.second;
 
     std::size_t n_diag = n_row + n_col - 1;
 
-    for (std::size_t ad = 0; ad < n_diag;)
+    std::size_t start = 0;
+    std::size_t end   = find_submatrix_end(start, payload);
+
+    void* args[] = {&start, &end, &d_curr[0], &d_hv, &d_diag, &d_ref, &d_src};
+    void* kernel = nw_cuda_fill;
+
+    cudaLaunchCooperativeKernel(kernel, grid, block, args, 0, stream[0]);
+
+    int prev = 0;
+    int next = 0;
+
+    for (std::size_t ad = end; ad < n_diag; ad = end)
     {
-        std::size_t end = find_submatrix_end(ad, payload);
+        std::size_t from = ad;
+        std::size_t to   = find_submatrix_end(ad, payload);
 
-        void* args[] = {&ad, &end, &d_curr, &d_hv, &d_diag, &d_ref, &d_src};
+        prev = next;
+        next = !next;
 
-        cudaLaunchCooperativeKernel((void*)nw_cuda_fill, n_block, n_thread, args);
-        cudaDeviceSynchronize();
+        args[0] = &from;
+        args[1] = &to;
+        args[2] = &d_curr[next];
 
-        copy_submatrix(d_curr, ad, end);
+        cudaStreamSynchronize(stream[prev]);
+        cudaLaunchCooperativeKernel(kernel, grid, block, args, 0, stream[next]);
 
-        ad = end;
+        copy_submatrix(d_curr[prev], start, end);
+
+        start = from;
+        end   = to;
     }
+
+    cudaStreamSynchronize(stream[next]);
+    copy_submatrix(d_curr[next], start, end);
 
     cudaFree(d_src);
     cudaFree(d_ref);
 
-    cudaFreeHost(d_diag);
-    cudaFreeHost(d_hv);
-    cudaFreeHost(d_curr);
+    cudaFree(d_diag);
+    cudaFree(d_hv);
+
+    cudaFree(d_curr[1]);
+    cudaFree(d_curr[0]);
+
+    cudaStreamDestroy(stream[1]);
+    cudaStreamDestroy(stream[0]);
 }
 
 int cuda::score(std::string const& ref, std::string const& src)
@@ -365,23 +383,24 @@ int cuda::score(std::string const& ref, std::string const& src)
     char* d_src;
 
     cudaMalloc(&d_ref, ref.size());
-    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyDefault);
 
     cudaMalloc(&d_src, src.size());
-    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyDefault);
 
     auto dimension = align_dimension(n_vect);
 
-    std::size_t n_block  = dimension.first;
-    std::size_t n_thread = dimension.second;
+    std::size_t grid  = dimension.first;
+    std::size_t block = dimension.second;
 
     void* args[] = {&d_curr, &d_hv, &d_diag, &d_ref, &d_src};
+    void* kernel = nw_cuda_score;
 
-    cudaLaunchCooperativeKernel((void*)nw_cuda_score, n_block, n_thread, args);
+    cudaLaunchCooperativeKernel(kernel, grid, block, args);
     cudaDeviceSynchronize();
 
     int score;
-    cudaMemcpy(&score, d_curr, sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&score, d_curr, sizeof(int), cudaMemcpyDefault);
 
     cudaFree(d_src);
     cudaFree(d_ref);
@@ -430,14 +449,14 @@ void cuda::copy_submatrix(int* matrix, std::size_t start, std::size_t end)
 
     std::size_t size = find_submatrix_size(start, end);
 
-    cudaMemcpy(&(*this)(rw, cl), matrix, size * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&(*this)(rw, cl), matrix, size * sizeof(int), cudaMemcpyDefault);
 }
 
 std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
 {
     std::size_t n_diag = n_row + n_col - 1;
 
-    std::size_t end   = start + 1;
+    std::size_t end   = start;
     std::size_t total = 0;
 
     while (end < n_diag && total < payload)
@@ -451,7 +470,7 @@ std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
         ++end;
     }
 
-    return end;
+    return (total > payload) ? end - 1 : end;
 }
 
 std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
@@ -505,25 +524,11 @@ std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
 
 std::size_t cuda::partition_payload()
 {
-    static constexpr std::size_t exec_time  = 8;
-    static constexpr std::size_t throughput = 2048 / sizeof(int);
+    static constexpr std::size_t threshold = 100'000;
+    static constexpr std::size_t coeff     = 20;
 
-    std::size_t n_diag = n_row + n_col - 1;
-    std::size_t n_val  = n_row * n_col;
+    std::size_t max_vect = std::min(n_row, n_col);
+    std::size_t payload  = n_row * n_col;
 
-    std::size_t n_launch = 1;
-    std::size_t payload  = n_val / n_launch;
-
-    std::size_t total_exec_time    = (n_diag / n_launch) * exec_time;
-    std::size_t data_transfer_time = (payload / n_launch) / throughput;
-
-    while (total_exec_time < data_transfer_time && n_launch < n_diag)
-    {
-        payload = n_val / ++n_launch;
-
-        total_exec_time    = (n_diag / n_launch) * exec_time;
-        data_transfer_time = payload / throughput;
-    }
-
-    return payload;
+    return (payload < threshold) ? payload : max_vect * coeff;
 }
