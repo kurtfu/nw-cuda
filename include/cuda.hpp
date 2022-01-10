@@ -30,8 +30,6 @@ namespace nw
     private:
         std::pair<std::size_t, std::size_t> align_dimension(std::size_t n_vect);
 
-        void copy_submatrix(int* matrix, std::size_t size, std::size_t start);
-
         std::size_t find_submatrix_end(std::size_t start, std::size_t payload);
         std::size_t find_submatrix_size(std::size_t start, std::size_t end);
         std::size_t partition_payload();
