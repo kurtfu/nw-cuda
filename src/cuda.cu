@@ -532,7 +532,7 @@ std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
 
 std::size_t cuda::partition_payload()
 {
-    static constexpr std::size_t threshold = 500'000;
+    static constexpr std::size_t threshold = 2'000'000;
 
     std::size_t max_vect = std::min(n_row, n_col);
     std::size_t capacity = n_row * n_col;
