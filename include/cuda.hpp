@@ -19,8 +19,8 @@ namespace nw
         cuda(int match, int miss, int gap);
         ~cuda() = default;
 
-        virtual std::size_t row_count() const override;
-        virtual std::size_t col_count() const override;
+        std::size_t row_count() const override;
+        std::size_t col_count() const override;
 
         int& operator()(std::size_t rw, std::size_t cl) override;
 
