@@ -6,6 +6,8 @@
 /*****************************************************************************/
 
 #include "aligner.hpp"
+
+#include <functional>
 #include <memory>
 
 /*****************************************************************************/
@@ -23,8 +25,9 @@ namespace nw
     class creator
     {
     public:
-        creator() = delete;
-        static std::unique_ptr<aligner> create(algo type, int match, int miss, int gap);
+        creator(algo type);
+
+        std::function<std::unique_ptr<aligner>(int match, int miss, int gap)> create;
     };
 }
 

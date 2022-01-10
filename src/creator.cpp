@@ -11,23 +11,43 @@
 /*  USING DECLERATIONS                                                       */
 /*****************************************************************************/
 
-using nw::algo;
-using nw::aligner;
 using nw::creator;
+
+/*****************************************************************************/
+/*  MODULE FUNCTIONS                                                         */
+/*****************************************************************************/
+
+namespace
+{
+    std::unique_ptr<nw::aligner> create_serial(int match, int miss, int gap)
+    {
+        return std::make_unique<nw::serial>(match, miss, gap);
+    }
+
+    std::unique_ptr<nw::aligner> create_cuda(int match, int miss, int gap)
+    {
+        return std::make_unique<nw::cuda>(match, miss, gap);
+    }
+}
 
 /*****************************************************************************/
 /*  PUBLIC METHODS                                                           */
 /*****************************************************************************/
 
-std::unique_ptr<aligner> creator::create(algo type, int match, int mismatch, int gap)
+creator::creator(algo type)
 {
     switch (type)
     {
         case algo::serial:
-            return std::make_unique<serial>(match, mismatch, gap);
+            create = create_serial;
+            break;
+
         case algo::cuda:
-            return std::make_unique<cuda>(match, mismatch, gap);
+            create = create_cuda;
+            break;
+
         default:
-            return nullptr;
+            create = nullptr;
+            break;
     }
 }
