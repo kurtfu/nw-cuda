@@ -355,14 +355,11 @@ void cuda::fill(std::string const& ref, std::string const& src)
         end   = to;
     }
 
-    std::size_t size = find_submatrix_size(start, end);
-    cudaMemcpyAsync(buf, d_curr[next], size, cudaMemcpyDefault, stream[next]);
-
     std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
     std::size_t cl = (start < n_col) ? start : n_col - 1;
 
-    cudaStreamSynchronize(stream[next]);
-    std::memcpy(&(*this)(rw, cl), buf, size);
+    std::size_t size = find_submatrix_size(start, end);
+    cudaMemcpy(&(*this)(rw, cl), d_curr[next], size, cudaMemcpyDefault);
 
     cudaFree(d_src);
     cudaFree(d_ref);
