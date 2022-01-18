@@ -79,7 +79,7 @@ clean:
 	@echo "Project Cleaned Successfully"
 
 seqgen:
-	$(MAKE) --no-print-directory -C utils
+	@$(MAKE) --no-print-directory -C utils
 
 #------------------------------------------------------------------------------
 # BUILD RULES

@@ -19,8 +19,8 @@ namespace nw
         cuda(int match, int miss, int gap);
         ~cuda() = default;
 
-        virtual std::size_t row_count() const override;
-        virtual std::size_t col_count() const override;
+        std::size_t row_count() const override;
+        std::size_t col_count() const override;
 
         int& operator()(std::size_t rw, std::size_t cl) override;
 
@@ -29,8 +29,6 @@ namespace nw
 
     private:
         std::pair<std::size_t, std::size_t> align_dimension(std::size_t n_vect);
-
-        void copy_submatrix(int* matrix, std::size_t size, std::size_t start);
 
         std::size_t find_submatrix_end(std::size_t start, std::size_t payload);
         std::size_t find_submatrix_size(std::size_t start, std::size_t end);

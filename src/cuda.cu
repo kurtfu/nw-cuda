@@ -286,6 +286,10 @@ void cuda::fill(std::string const& ref, std::string const& src)
     std::size_t n_vect  = std::min(n_row, n_col);
     std::size_t payload = partition_payload();
 
+    int* buf;
+
+    cudaMallocHost(&buf, payload * sizeof(int));
+
     int* d_curr[2];
 
     cudaMalloc(&d_curr[0], payload * sizeof(int));
@@ -329,6 +333,9 @@ void cuda::fill(std::string const& ref, std::string const& src)
         std::size_t from = ad;
         std::size_t to   = find_submatrix_end(ad, payload);
 
+        std::size_t size = find_submatrix_size(start, end);
+        cudaMemcpyAsync(buf, d_curr[prev], size, cudaMemcpyDefault, stream[prev]);
+
         prev = next;
         next = !next;
 
@@ -339,14 +346,20 @@ void cuda::fill(std::string const& ref, std::string const& src)
         cudaStreamSynchronize(stream[prev]);
         cudaLaunchCooperativeKernel(kernel, grid, block, args, 0, stream[next]);
 
-        copy_submatrix(d_curr[prev], start, end);
+        std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
+        std::size_t cl = (start < n_col) ? start : n_col - 1;
+
+        std::memcpy(&(*this)(rw, cl), buf, size);
 
         start = from;
         end   = to;
     }
 
-    cudaStreamSynchronize(stream[next]);
-    copy_submatrix(d_curr[next], start, end);
+    std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
+    std::size_t cl = (start < n_col) ? start : n_col - 1;
+
+    std::size_t size = find_submatrix_size(start, end);
+    cudaMemcpy(&(*this)(rw, cl), d_curr[next], size, cudaMemcpyDefault);
 
     cudaFree(d_src);
     cudaFree(d_ref);
@@ -356,6 +369,8 @@ void cuda::fill(std::string const& ref, std::string const& src)
 
     cudaFree(d_curr[1]);
     cudaFree(d_curr[0]);
+
+    cudaFreeHost(buf);
 
     cudaStreamDestroy(stream[1]);
     cudaStreamDestroy(stream[0]);
@@ -442,16 +457,6 @@ std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
     return std::make_pair(n_block, n_thread);
 }
 
-void cuda::copy_submatrix(int* matrix, std::size_t start, std::size_t end)
-{
-    std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
-    std::size_t cl = (start < n_col) ? start : n_col - 1;
-
-    std::size_t size = find_submatrix_size(start, end);
-
-    cudaMemcpy(&(*this)(rw, cl), matrix, size * sizeof(int), cudaMemcpyDefault);
-}
-
 std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
 {
     std::size_t n_diag = n_row + n_col - 1;
@@ -519,16 +524,17 @@ std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
         size -= (end * (end + 1)) / 2;
     }
 
-    return size;
+    return size * sizeof(int);
 }
 
 std::size_t cuda::partition_payload()
 {
-    static constexpr std::size_t threshold = 100'000;
-    static constexpr std::size_t coeff     = 20;
+    static constexpr std::size_t threshold = 2'000'000;
 
     std::size_t max_vect = std::min(n_row, n_col);
-    std::size_t payload  = n_row * n_col;
+    std::size_t capacity = n_row * n_col;
 
-    return (payload < threshold) ? payload : max_vect * coeff;
+    std::size_t payload = (capacity < threshold) ? capacity : threshold;
+
+    return (payload < max_vect) ? max_vect : payload;
 }
