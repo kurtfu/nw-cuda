@@ -19,11 +19,8 @@ int main(int argc, char const* argv[])
         return (opt == argv + argc || (opt + 1) == argv + argc) ? nullptr : opt;
     };
 
-    auto opt = find_opt("--start");
-    std::size_t start = (opt == nullptr) ? 10 : std::atoi(*(opt + 1));
-
-    opt = find_opt("--end");
-    std::size_t end = (opt == nullptr) ? 100000 : std::atoi(*(opt + 1));
+    auto opt = find_opt("--length");
+    std::size_t length = (opt == nullptr) ? 1000 : std::atoi(*(opt + 1));
 
     opt = find_opt("--sample");
     std::size_t sample_count = (opt == nullptr) ? 10 : std::atoi(*(opt + 1));
@@ -56,15 +53,12 @@ int main(int argc, char const* argv[])
 
     std::ofstream output(*(log + 1));
 
-    for (std::size_t length = start; length <= end; length *= 10)
+    for (std::size_t sample = 0; sample < sample_count; ++sample)
     {
-        for (std::size_t sample = 0; sample < sample_count; ++sample)
-        {
-            std::string src = random_sequence(length);
-            std::string ref = random_sequence(length);
+        std::string src = random_sequence(length);
+        std::string ref = random_sequence(length);
 
-            output << src << ' ' << ref << '\n';
-        }
+        output << src << ' ' << ref << '\n';
     }
 
     std::cout << "Sequences have been generated!\n";
