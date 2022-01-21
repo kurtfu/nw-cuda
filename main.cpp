@@ -56,8 +56,10 @@ void fill(nw::algo algo, std::ifstream& input, std::ofstream& output)
         std::size_t rw = nw->row_count() - 1;
         std::size_t cl = nw->col_count() - 1;
 
+        int score = (*nw)(rw, cl);
+
         std::cout << "Exec Time: " << elapsed.count() << '\n';
-        output << (*nw)(rw, cl) << ',' << elapsed.count() << '\n';
+        output << src.size() << ',' << score << ',' << elapsed.count() << '\n';
     }
 }
 
@@ -88,7 +90,7 @@ void score(nw::algo algo, std::ifstream& input, std::ofstream& output)
         std::size_t cl = nw->col_count() - 1;
 
         std::cout << "Exec Time: " << elapsed.count() << '\n';
-        output << score << ',' << elapsed.count() << '\n';
+        output << src.size() << ',' << score << ',' << elapsed.count() << '\n';
     }
 }
 
