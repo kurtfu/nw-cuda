@@ -6,6 +6,14 @@
 /*****************************************************************************/
 
 #include "aligner.hpp"
+#include <memory>
+
+/*****************************************************************************/
+/*  TYPE ALIASES                                                             */
+/*****************************************************************************/
+
+using nw_cuda_memory   = std::unique_ptr<int, void (*)(void*)>;
+using nw_cuda_sequence = std::unique_ptr<char, void (*)(void*)>;
 
 /*****************************************************************************/
 /*  DATA TYPES                                                               */
@@ -30,9 +38,9 @@ namespace nw
     private:
         std::pair<std::size_t, std::size_t> align_dimension(std::size_t n_vect);
 
-        int*  alloc_pageable(std::size_t size);
-        int*  alloc_pinned(std::size_t size);
-        char* alloc_sequence(std::string const& seq);
+        nw_cuda_memory   alloc_pageable(std::size_t size);
+        nw_cuda_memory   alloc_pinned(std::size_t size);
+        nw_cuda_sequence alloc_sequence(std::string const& seq);
 
         std::size_t find_submatrix_end(std::size_t start, std::size_t payload);
         std::size_t find_submatrix_size(std::size_t start, std::size_t end);
