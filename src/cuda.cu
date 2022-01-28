@@ -286,29 +286,15 @@ void cuda::fill(std::string const& ref, std::string const& src)
     std::size_t n_vect  = std::min(n_row, n_col);
     std::size_t payload = partition_payload();
 
-    int* buf;
+    int* buf = alloc_pinned(payload);
 
-    cudaMallocHost(&buf, payload * sizeof(int));
+    int* d_curr[] = {alloc_pageable(payload), alloc_pageable(payload)};
 
-    int* d_curr[2];
+    int* d_hv   = alloc_pageable(n_vect);
+    int* d_diag = alloc_pageable(n_vect);
 
-    cudaMalloc(&d_curr[0], payload * sizeof(int));
-    cudaMalloc(&d_curr[1], payload * sizeof(int));
-
-    int* d_hv;
-    int* d_diag;
-
-    cudaMalloc(&d_hv, n_vect * sizeof(int));
-    cudaMalloc(&d_diag, n_vect * sizeof(int));
-
-    char* d_ref;
-    char* d_src;
-
-    cudaMalloc(&d_ref, ref.size());
-    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyDefault);
-
-    cudaMalloc(&d_src, src.size());
-    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyDefault);
+    char* d_ref = alloc_sequence(ref);
+    char* d_src = alloc_sequence(src);
 
     auto dimension = align_dimension(n_vect);
 
@@ -386,22 +372,12 @@ int cuda::score(std::string const& ref, std::string const& src)
 
     std::size_t n_vect = std::min(n_row, n_col);
 
-    int* d_curr;
-    int* d_hv;
-    int* d_diag;
+    int* d_curr = alloc_pageable(n_vect);
+    int* d_hv   = alloc_pageable(n_vect);
+    int* d_diag = alloc_pageable(n_vect);
 
-    cudaMalloc(&d_curr, n_vect * sizeof(int));
-    cudaMalloc(&d_hv, n_vect * sizeof(int));
-    cudaMalloc(&d_diag, n_vect * sizeof(int));
-
-    char* d_ref;
-    char* d_src;
-
-    cudaMalloc(&d_ref, ref.size());
-    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyDefault);
-
-    cudaMalloc(&d_src, src.size());
-    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyDefault);
+    char* d_ref = alloc_sequence(ref);
+    char* d_src = alloc_sequence(src);
 
     auto dimension = align_dimension(n_vect);
 
@@ -455,6 +431,32 @@ std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
     }
 
     return std::make_pair(n_block, n_thread);
+}
+
+int* cuda::alloc_pageable(std::size_t size)
+{
+    int* d_mem;
+    cudaMalloc(&d_mem, size * sizeof(int));
+
+    return d_mem;
+}
+
+int* cuda::alloc_pinned(std::size_t size)
+{
+    int* d_mem;
+    cudaMallocHost(&d_mem, size * sizeof(int));
+
+    return d_mem;
+}
+
+char* cuda::alloc_sequence(std::string const& seq)
+{
+    char* d_seq;
+
+    cudaMalloc(&d_seq, seq.size());
+    cudaMemcpy(d_seq, seq.c_str(), seq.size(), cudaMemcpyDefault);
+
+    return d_seq;
 }
 
 std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)

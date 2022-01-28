@@ -30,6 +30,10 @@ namespace nw
     private:
         std::pair<std::size_t, std::size_t> align_dimension(std::size_t n_vect);
 
+        int*  alloc_pageable(std::size_t size);
+        int*  alloc_pinned(std::size_t size);
+        char* alloc_sequence(std::string const& seq);
+
         std::size_t find_submatrix_end(std::size_t start, std::size_t payload);
         std::size_t find_submatrix_size(std::size_t start, std::size_t end);
         std::size_t partition_payload();
