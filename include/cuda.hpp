@@ -32,8 +32,8 @@ namespace nw
 
         int& operator()(std::size_t rw, std::size_t cl) override;
 
-        void fill(std::string const& ref, std::string const& src) override;
-        int  score(std::string const& ref, std::string const& src) override;
+        int fill(std::string const& ref, std::string const& src) override;
+        int score(std::string const& ref, std::string const& src) override;
 
     private:
         std::pair<std::size_t, std::size_t> align_dimension(std::size_t n_vect);

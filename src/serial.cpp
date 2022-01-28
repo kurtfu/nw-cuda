@@ -37,7 +37,7 @@ std::size_t serial::col_count() const
     return n_col;
 }
 
-void serial::fill(std::string const& ref, std::string const& src)
+int serial::fill(std::string const& ref, std::string const& src)
 {
     std::size_t n_row = std::min(ref.size(), src.size()) + 1;
     std::size_t n_col = std::max(ref.size(), src.size()) + 1;
@@ -73,6 +73,8 @@ void serial::fill(std::string const& ref, std::string const& src)
                                         (*this)(rw, cl - 1) + gap});
         }
     }
+
+    return (*this)(n_row - 1, n_col - 1);
 }
 
 int serial::score(std::string const& ref, std::string const& src)

@@ -257,7 +257,7 @@ std::size_t cuda::col_count() const
     return n_col;
 }
 
-void cuda::fill(std::string const& ref, std::string const& src)
+int cuda::fill(std::string const& ref, std::string const& src)
 {
     std::size_t n_row = src.size() + 1;
     std::size_t n_col = ref.size() + 1;
@@ -353,6 +353,8 @@ void cuda::fill(std::string const& ref, std::string const& src)
 
     cudaStreamDestroy(stream[1]);
     cudaStreamDestroy(stream[0]);
+
+    return(*this)(n_row - 1, n_col - 1);
 }
 
 int cuda::score(std::string const& ref, std::string const& src)

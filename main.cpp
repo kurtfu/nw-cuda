@@ -47,16 +47,14 @@ void fill(nw::algo algo, std::ifstream& input, std::ofstream& output)
 
         auto begin = std::chrono::high_resolution_clock::now();
 
-        auto nw = creator.create(match, miss, gap);
-        nw->fill(ref, src);
+        auto nw    = creator.create(match, miss, gap);
+        int  score = nw->fill(ref, src);
 
         auto end     = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
 
         std::size_t rw = nw->row_count() - 1;
         std::size_t cl = nw->col_count() - 1;
-
-        int score = (*nw)(rw, cl);
 
         std::cout << "Exec Time: " << elapsed.count() << '\n';
         output << src.size() << ',' << score << ',' << elapsed.count() << '\n';
