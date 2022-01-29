@@ -82,19 +82,19 @@ __device__ static void nw_cuda_fill_cell(std::size_t rw,
 
     if (rw + cl < line)
     {
-        pair   += *(diag - 1);
+        pair += *(diag - 1);
         insert += *(hv - 1);
         remove += *hv;
     }
     else if (rw + cl == line)
     {
-        pair   += *diag;
+        pair += *diag;
         insert += *hv;
         remove += *(hv + 1);
     }
     else
     {
-        pair   += *(diag + 1);
+        pair += *(diag + 1);
         insert += *hv;
         remove += *(hv + 1);
     }
@@ -313,7 +313,7 @@ int cuda::fill(std::string const& ref, std::string const& src)
     void* args[] = {&start, &end, &p_curr, &p_hv, &p_diag, &p_ref, &p_src};
     void* kernel = nw_cuda_fill;
 
-    auto[grid, block] = align_dimension(n_vect);
+    auto [grid, block] = align_dimension(n_vect);
 
     cudaLaunchCooperativeKernel(kernel, grid, block, args, 0, stream[0]);
 
@@ -354,7 +354,7 @@ int cuda::fill(std::string const& ref, std::string const& src)
     cudaStreamDestroy(stream[1]);
     cudaStreamDestroy(stream[0]);
 
-    return(*this)(n_row - 1, n_col - 1);
+    return (*this)(n_row - 1, n_col - 1);
 }
 
 int cuda::score(std::string const& ref, std::string const& src)
@@ -384,7 +384,7 @@ int cuda::score(std::string const& ref, std::string const& src)
     void* args[] = {&p_curr, &p_hv, &p_diag, &p_ref, &p_src};
     void* kernel = nw_cuda_score;
 
-    auto[grid, block] = align_dimension(n_vect);
+    auto [grid, block] = align_dimension(n_vect);
 
     cudaLaunchCooperativeKernel(kernel, grid, block, args);
     cudaDeviceSynchronize();
