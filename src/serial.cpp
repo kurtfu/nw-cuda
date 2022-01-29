@@ -39,8 +39,8 @@ std::size_t serial::col_count() const
 
 int serial::fill(std::string const& ref, std::string const& src)
 {
-    std::size_t n_row = std::min(ref.size(), src.size()) + 1;
-    std::size_t n_col = std::max(ref.size(), src.size()) + 1;
+    std::size_t n_row = src.size() + 1;
+    std::size_t n_col = ref.size() + 1;
 
     if (n_row * n_col > this->n_row * this->n_col)
     {
@@ -79,8 +79,8 @@ int serial::fill(std::string const& ref, std::string const& src)
 
 int serial::score(std::string const& ref, std::string const& src)
 {
-    std::size_t n_row = std::min(ref.size(), src.size()) + 1;
-    std::size_t n_col = std::max(ref.size(), src.size()) + 1;
+    std::size_t n_row = src.size() + 1;
+    std::size_t n_col = ref.size() + 1;
 
     std::vector<int> prev(n_col);
     std::vector<int> curr(n_col);

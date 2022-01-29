@@ -60,39 +60,46 @@ __device__ static void nw_cuda_fill_cell(std::size_t rw,
                                          char const* ref,
                                          char const* src)
 {
-    if (rw == 0 || cl == 0)
+    if (rw == 0)
     {
-        *curr = (rw + cl) * nw_cuda_gap;
+        *curr = cl * nw_cuda_gap;
+        return;
+    }
+
+    if (cl == 0)
+    {
+        *curr = rw * nw_cuda_gap;
+        return;
+    }
+
+    int pair   = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
+    int insert = nw_cuda_gap;
+    int remove = nw_cuda_gap;
+
+    std::size_t line = (nw_cuda_n_col > nw_cuda_n_row)
+                           ? std::max(nw_cuda_n_row, nw_cuda_n_col)
+                           : std::min(nw_cuda_n_row, nw_cuda_n_col);
+
+    if (rw + cl < line)
+    {
+        pair   += *(diag - 1);
+        insert += *(hv - 1);
+        remove += *hv;
+    }
+    else if (rw + cl == line)
+    {
+        pair   += *diag;
+        insert += *hv;
+        remove += *(hv + 1);
     }
     else
     {
-        std::size_t lower_line = std::max(nw_cuda_n_row, nw_cuda_n_col);
-
-        int diag_offset;
-        int hv_offset;
-
-        if (rw + cl < lower_line)
-        {
-            diag_offset = -1;
-            hv_offset   = -1;
-        }
-        else if (rw + cl == lower_line)
-        {
-            diag_offset = 0;
-            hv_offset   = 1;
-        }
-        else
-        {
-            diag_offset = 1;
-            hv_offset   = 1;
-        }
-
-        int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
-
-        *curr = std::max({*(diag + diag_offset) + eps,
-                          *(hv + hv_offset) + nw_cuda_gap,
-                          *hv + nw_cuda_gap});
+        pair   += *(diag + 1);
+        insert += *hv;
+        remove += *(hv + 1);
     }
+
+    *curr = std::max({pair, insert, remove});
 }
 
 __device__ static void nw_cuda_fill_ad(std::size_t ad,
@@ -210,38 +217,34 @@ cuda::cuda(int match, int miss, int gap)
 
 int& cuda::operator()(std::size_t rw, std::size_t cl)
 {
-    std::size_t upper_line = std::min(n_row, n_col);
-    std::size_t lower_line = std::max(n_row, n_col);
+    std::size_t upper = std::min(n_row, n_col);
+    std::size_t lower = std::max(n_row, n_col);
 
     std::size_t ad = rw + cl;
 
     std::size_t pos;
     std::size_t offset;
 
-    if (ad < upper_line)
+    if (ad < upper)
     {
         pos    = ad * (ad + 1) / 2;
         offset = rw;
     }
-    else if (ad < lower_line)
+    else if (ad < lower)
     {
-        std::size_t n_vect = std::min(n_row, n_col);
-
-        pos = upper_line * (upper_line + 1) / 2;
-        pos += (ad - upper_line) * n_vect;
+        pos = upper * (upper + 1) / 2;
+        pos += (ad - upper) * std::min(n_row, n_col);
 
         offset = (n_row < n_col) ? rw : n_col - cl - 1;
     }
     else
     {
-        std::size_t n_diag = n_row + n_col - 1;
+        std::size_t comp = n_row + n_col - ad - 1;
 
-        ad = n_diag - ad;
+        pos = n_row * n_col;
+        pos -= comp * (comp + 1) / 2;
 
-        pos = (n_row * n_col) - 1;
-        pos -= (ad * (ad + 1) / 2);
-
-        offset = (n_row < n_col) ? rw : n_col - cl;
+        offset = n_col - cl - 1;
     }
 
     return matrix[pos + offset];
