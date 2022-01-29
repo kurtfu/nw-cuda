@@ -310,10 +310,7 @@ int cuda::fill(std::string const& ref, std::string const& src)
     void* args[] = {&start, &end, &p_curr, &p_hv, &p_diag, &p_ref, &p_src};
     void* kernel = nw_cuda_fill;
 
-    auto dimension = align_dimension(n_vect);
-
-    std::size_t grid  = dimension.first;
-    std::size_t block = dimension.second;
+    auto[grid, block] = align_dimension(n_vect);
 
     cudaLaunchCooperativeKernel(kernel, grid, block, args, 0, stream[0]);
 
@@ -374,11 +371,6 @@ int cuda::score(std::string const& ref, std::string const& src)
     auto d_ref = alloc_sequence(ref);
     auto d_src = alloc_sequence(src);
 
-    auto dimension = align_dimension(n_vect);
-
-    std::size_t grid  = dimension.first;
-    std::size_t block = dimension.second;
-
     int* p_curr = d_curr.get();
     int* p_hv   = d_hv.get();
     int* p_diag = d_diag.get();
@@ -388,6 +380,8 @@ int cuda::score(std::string const& ref, std::string const& src)
 
     void* args[] = {&p_curr, &p_hv, &p_diag, &p_ref, &p_src};
     void* kernel = nw_cuda_score;
+
+    auto[grid, block] = align_dimension(n_vect);
 
     cudaLaunchCooperativeKernel(kernel, grid, block, args);
     cudaDeviceSynchronize();
