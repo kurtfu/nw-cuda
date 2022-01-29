@@ -609,28 +609,29 @@ std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
 
 std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
 {
+    std::size_t carry = 0;
+
     std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
     std::size_t cl = (start < n_col) ? start : n_col - 1;
 
     auto from = &(*this)(rw, cl);
 
-    if (end == n_row + n_col - 1)
-    {
-        rw = n_row - 1;
-        cl = n_col - 1;
-    }
-    else
+    if (end != n_row + n_col - 1)
     {
         rw = (end < n_col) ? 0 : end - n_col + 1;
         cl = (end < n_col) ? end : n_col - 1;
     }
+    else
+    {
+        rw = n_row - 1;
+        cl = n_col - 1;
+
+        carry = 1;
+    }
 
     auto to = &(*this)(rw, cl);
 
-    std::size_t size   = std::distance(from, to);
-    std::size_t n_vect = std::min(n_row - rw, cl + 1);
-
-    return (size + n_vect) * sizeof(nw::trace);
+    return (std::distance(from, to) + carry) * sizeof(nw::trace);
 }
 
 std::size_t cuda::partition_payload()
