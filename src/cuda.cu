@@ -489,51 +489,28 @@ std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
 
 std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
 {
-    std::size_t upper_line = std::min(n_row, n_col);
-    std::size_t lower_line = std::max(n_row, n_col);
+    std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
+    std::size_t cl = (start < n_col) ? start : n_col - 1;
 
-    std::size_t n_diag = n_row + n_col - 1;
+    auto from = &(*this)(rw, cl);
 
-    std::size_t size = n_row * n_col;
-
-    if (start < upper_line)
+    if (end == n_row + n_col - 1)
     {
-        size -= (start * (start + 1)) / 2;
-    }
-    else if (start < lower_line)
-    {
-        std::size_t n_vect = std::min(n_row, n_col);
-
-        size -= (upper_line * (upper_line + 1) / 2);
-        size -= (start - upper_line) * n_vect;
+        rw = n_row - 1;
+        cl = n_col - 1;
     }
     else
     {
-        start = n_diag - start;
-        size  = (start * (start + 1)) / 2;
+        rw = (end < n_col) ? 0 : end - n_col + 1;
+        cl = (end < n_col) ? end : n_col - 1;
     }
 
-    if (end < upper_line)
-    {
-        size = (end * (end + 1)) / 2;
-        size -= (start * (start + 1)) / 2;
-    }
-    else if (end < lower_line)
-    {
-        std::size_t n_vect = std::min(n_row, n_col);
+    auto to = &(*this)(rw, cl);
 
-        size -= (lower_line - end) * n_vect;
+    std::size_t size   = std::distance(from, to);
+    std::size_t n_vect = std::min(n_row - rw, cl + 1);
 
-        end = n_diag - end;
-        size -= (end * (end + 1)) / 2;
-    }
-    else
-    {
-        end = n_diag - end;
-        size -= (end * (end + 1)) / 2;
-    }
-
-    return size * sizeof(int);
+    return (size + n_vect) * sizeof(int);
 }
 
 std::size_t cuda::partition_payload()
