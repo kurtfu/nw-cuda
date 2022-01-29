@@ -14,12 +14,19 @@
 
 namespace nw
 {
+    enum class trace
+    {
+        pair,
+        insert,
+        remove
+    };
+
     class aligner
     {
     public:
         virtual ~aligner() = default;
 
-        virtual int& operator()(std::size_t rw, std::size_t cl) = 0;
+        virtual trace& operator()(std::size_t rw, std::size_t cl) = 0;
 
         virtual std::size_t row_count() const = 0;
         virtual std::size_t col_count() const = 0;
@@ -35,7 +42,7 @@ namespace nw
         std::size_t n_row = 0;
         std::size_t n_col = 0;
 
-        std::vector<int> matrix;
+        std::vector<trace> matrix;
     };
 }
 
