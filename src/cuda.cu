@@ -5,7 +5,6 @@
 #include "cuda.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cooperative_groups.h>
 #include <thrust/swap.h>
 
@@ -368,37 +367,32 @@ int cuda::fill(std::string const& ref, std::string const& src)
     cudaMemcpyToSymbol(nw_cuda_n_row, &n_row, sizeof(std::size_t));
     cudaMemcpyToSymbol(nw_cuda_n_col, &n_col, sizeof(std::size_t));
 
-    cudaStream_t stream[2];
-
-    cudaStreamCreate(&stream[0]);
-    cudaStreamCreate(&stream[1]);
-
     std::size_t n_vect  = std::min(n_row, n_col);
     std::size_t payload = partition_payload();
 
-    auto buf = alloc_pinned(payload);
+    auto d_sub  = alloc_trace(payload);
 
-    std::array d_sub  = {alloc_pageable(payload), alloc_pageable(payload)};
-    std::array d_vect = {alloc_vect(n_vect), alloc_vect(n_vect), alloc_vect(n_vect)};
+    auto d_curr = alloc_vect(n_vect);
+    auto d_hv   = alloc_vect(n_vect);
+    auto d_diag = alloc_vect(n_vect);
 
     auto d_ref = alloc_sequence(ref);
     auto d_src = alloc_sequence(src);
 
-    std::size_t start = 0;
-    std::size_t end   = find_submatrix_end(start, payload);
-
-    int* p_curr = d_vect[0].get();
-    int* p_hv   = d_vect[1].get();
-    int* p_diag = d_vect[2].get();
+    int* p_curr = d_curr.get();
+    int* p_hv   = d_hv.get();
+    int* p_diag = d_diag.get();
 
     auto swap_vects = [&](std::size_t n_iter)
     {
-        if (n_iter % d_vect.size() == 1)
+        static constexpr std::size_t vect_count = 3;
+
+        if (n_iter % vect_count == 1)
         {
             std::swap(p_diag, p_hv);
             std::swap(p_hv, p_curr);
         }
-        else if (n_iter % d_vect.size() == 2)
+        else if (n_iter % vect_count == 2)
         {
             std::swap(p_curr, p_hv);
             std::swap(p_hv, p_diag);
@@ -408,58 +402,35 @@ int cuda::fill(std::string const& ref, std::string const& src)
     char* p_ref = d_ref.get();
     char* p_src = d_src.get();
 
-    nw::trace* p_sub = d_sub[0].get();
+    nw::trace* p_sub = d_sub.get();
+
+    std::size_t start;
+    std::size_t end;
+
+    auto [grid, block] = align_dimension(n_vect);
 
     void* args[] = {&start, &end, &p_sub, &p_curr, &p_hv, &p_diag, &p_ref, &p_src};
     void* kernel = nw_cuda_fill;
 
-    auto [grid, block] = align_dimension(n_vect);
-
-    cudaLaunchCooperativeKernel(kernel, grid, block, args, 0, stream[0]);
-
-    int prev = 0;
-    int next = 0;
-
     std::size_t n_diag = n_row + n_col - 1;
 
-    for (std::size_t ad = end; ad < n_diag; ad = end)
+    for (std::size_t ad = 0; ad < n_diag; ad = end)
     {
-        std::size_t size = find_submatrix_size(start, end);
-
-        std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
-        std::size_t cl = (start < n_col) ? start : n_col - 1;
-
-        cudaMemcpyAsync(buf.get(), p_sub, size, cudaMemcpyDefault, stream[prev]);
-
-        prev = next;
-        next = !next;
-
-        swap_vects(end - start);
-
         start = ad;
         end   = find_submatrix_end(start, payload);
 
-        p_sub = d_sub[next].get();
+        cudaLaunchCooperativeKernel(kernel, grid, block, args);
+        swap_vects(end - start);
 
-        cudaStreamSynchronize(stream[prev]);
-        cudaLaunchCooperativeKernel(kernel, grid, block, args, 0, stream[next]);
+        std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
+        std::size_t cl = (ad < n_col) ? ad : n_col - 1;
 
-        std::memcpy(&(*this)(rw, cl), buf.get(), size);
+        std::size_t size = find_submatrix_size(start, end);
+        cudaMemcpy(&(*this)(rw, cl), p_sub, size, cudaMemcpyDefault);
     }
-
-    std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
-    std::size_t cl = (start < n_col) ? start : n_col - 1;
-
-    std::size_t size = find_submatrix_size(start, end);
-    cudaMemcpy(&(*this)(rw, cl), p_sub, size, cudaMemcpyDefault);
-
-    swap_vects(end - start);
 
     int score;
     cudaMemcpy(&score, p_curr, sizeof(int), cudaMemcpyDefault);
-
-    cudaStreamDestroy(stream[1]);
-    cudaStreamDestroy(stream[0]);
 
     return score;
 }
@@ -532,32 +503,6 @@ std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
     return std::make_pair(n_block, n_thread);
 }
 
-nw_cuda_trace cuda::alloc_pageable(std::size_t size)
-{
-    nw::trace* d_mem;
-    cudaMalloc(&d_mem, size * sizeof(nw::trace));
-
-    auto deleter = [](void* ptr)
-    {
-        cudaFree(ptr);
-    };
-
-    return std::unique_ptr<nw::trace, decltype(deleter)>(d_mem, deleter);
-}
-
-nw_cuda_trace cuda::alloc_pinned(std::size_t size)
-{
-    nw::trace* d_mem;
-    cudaMallocHost(&d_mem, size * sizeof(nw::trace));
-
-    auto deleter = [](void* ptr)
-    {
-        cudaFreeHost(ptr);
-    };
-
-    return std::unique_ptr<nw::trace, decltype(deleter)>(d_mem, deleter);
-}
-
 nw_cuda_vect cuda::alloc_vect(std::size_t size)
 {
     int* d_mem;
@@ -569,6 +514,19 @@ nw_cuda_vect cuda::alloc_vect(std::size_t size)
     };
 
     return std::unique_ptr<int, decltype(deleter)>(d_mem, deleter);
+}
+
+nw_cuda_trace cuda::alloc_trace(std::size_t size)
+{
+    nw::trace* d_mem;
+    cudaMalloc(&d_mem, size * sizeof(nw::trace));
+
+    auto deleter = [](void* ptr)
+    {
+        cudaFree(ptr);
+    };
+
+    return std::unique_ptr<nw::trace, decltype(deleter)>(d_mem, deleter);
 }
 
 nw_cuda_sequence cuda::alloc_sequence(std::string const& seq)

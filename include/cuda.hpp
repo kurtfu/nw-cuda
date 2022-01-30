@@ -39,9 +39,8 @@ namespace nw
     private:
         std::pair<std::size_t, std::size_t> align_dimension(std::size_t n_vect);
 
-        nw_cuda_trace    alloc_pageable(std::size_t size);
-        nw_cuda_trace    alloc_pinned(std::size_t size);
         nw_cuda_sequence alloc_sequence(std::string const& seq);
+        nw_cuda_trace    alloc_trace(std::size_t size);
         nw_cuda_vect     alloc_vect(std::size_t size);
 
         std::size_t find_submatrix_end(std::size_t start, std::size_t payload);
