@@ -404,28 +404,28 @@ int cuda::fill(std::string const& ref, std::string const& src)
 
     nw::trace* p_sub = d_sub.get();
 
-    std::size_t start;
-    std::size_t end;
+    std::size_t from;
+    std::size_t to;
 
     auto [grid, block] = align_dimension(n_vect);
 
-    void* args[] = {&start, &end, &p_sub, &p_curr, &p_hv, &p_diag, &p_ref, &p_src};
+    void* args[] = {&from, &to, &p_sub, &p_curr, &p_hv, &p_diag, &p_ref, &p_src};
     void* kernel = nw_cuda_fill;
 
     std::size_t n_diag = n_row + n_col - 1;
 
-    for (std::size_t ad = 0; ad < n_diag; ad = end)
+    for (std::size_t ad = 0; ad < n_diag; ad = to)
     {
-        start = ad;
-        end   = find_submatrix_end(start, payload);
+        from = ad;
+        to   = find_submatrix_end(ad, payload);
 
         cudaLaunchCooperativeKernel(kernel, grid, block, args);
-        swap_vects(end - start);
+        swap_vects(to - from);
 
         std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
         std::size_t cl = (ad < n_col) ? ad : n_col - 1;
 
-        std::size_t size = find_submatrix_size(start, end);
+        std::size_t size = find_submatrix_size(from, to);
         cudaMemcpy(&(*this)(rw, cl), p_sub, size, cudaMemcpyDefault);
     }
 
