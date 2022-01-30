@@ -38,6 +38,28 @@ namespace
 /*  DEVICE KERNELS                                                           */
 /*****************************************************************************/
 
+__device__ static std::size_t nw_cuda_block_rank()
+{
+    return ((std::size_t)gridDim.x * gridDim.y * blockIdx.z)
+           + ((std::size_t)blockIdx.y * gridDim.x)
+           + (std::size_t)blockIdx.x;
+}
+
+__device__ static std::size_t nw_cuda_thread_rank()
+{
+    return (nw_cuda_block_rank() * blockDim.x * blockDim.y * blockDim.z)
+           + ((std::size_t)threadIdx.z * blockDim.x * blockDim.y)
+           + ((std::size_t)threadIdx.y * blockDim.x)
+           + (std::size_t)threadIdx.x;
+}
+
+__device__ static std::size_t nw_cuda_grid_size()
+{
+    return ((std::size_t)(blockDim.z * gridDim.z))
+           * ((std::size_t)(blockDim.y * gridDim.y))
+           * (((std::size_t)blockDim.x * gridDim.x));
+}
+
 __device__ static void nw_cuda_fill_cell(std::size_t rw,
                                          std::size_t cl,
                                          nw::trace*  sub,
@@ -126,25 +148,23 @@ __device__ static void nw_cuda_fill_ad(std::size_t ad,
                                        char const* ref,
                                        char const* src)
 {
-    cg::grid_group grid = cg::this_grid();
-
     std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
     std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
 
-    std::size_t top_row = rw;
-    std::size_t n_vect  = std::min(nw_cuda_n_row - rw, cl + 1);
+    std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
+    std::size_t pos    = nw_cuda_thread_rank();
 
-    rw += grid.thread_rank();
-    cl -= grid.thread_rank();
+    rw += nw_cuda_thread_rank();
+    cl -= nw_cuda_thread_rank();
 
-    while (rw - top_row < n_vect)
+    while (pos < n_vect)
     {
-        std::size_t pos = rw - top_row;
-
         nw_cuda_fill_cell(rw, cl, &sub[pos], &curr[pos], &hv[pos], &diag[pos], ref, src);
 
-        rw += grid.size();
-        cl -= grid.size();
+        rw += nw_cuda_grid_size();
+        cl -= nw_cuda_grid_size();
+
+        pos += nw_cuda_grid_size();
     }
 }
 
@@ -205,25 +225,23 @@ __device__ static void nw_cuda_score_ad(std::size_t ad,
                                         char const* ref,
                                         char const* src)
 {
-    cg::grid_group grid = cg::this_grid();
-
     std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
     std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
 
-    std::size_t top_row = rw;
-    std::size_t n_vect  = std::min(nw_cuda_n_row - rw, cl + 1);
+    std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
+    std::size_t pos    = nw_cuda_thread_rank();
 
-    rw += grid.thread_rank();
-    cl -= grid.thread_rank();
+    rw += nw_cuda_thread_rank();
+    cl -= nw_cuda_thread_rank();
 
-    while (rw - top_row < n_vect)
+    while (pos < n_vect)
     {
-        std::size_t pos = rw - top_row;
-
         nw_cuda_score_cell(rw, cl, &curr[pos], &hv[pos], &diag[pos], ref, src);
 
-        rw += grid.size();
-        cl -= grid.size();
+        rw += nw_cuda_grid_size();
+        cl -= nw_cuda_grid_size();
+
+        pos += nw_cuda_grid_size();
     }
 }
 
