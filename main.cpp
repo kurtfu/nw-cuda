@@ -16,7 +16,7 @@
 /*  TYPE ALIASES                                                             */
 /*****************************************************************************/
 
-using test_signature = void(nw::algo, std::ifstream&, std::ofstream&);
+using test_fn = int(nw::aligner::*)(std::string const&, std::string const&);
 
 /*****************************************************************************/
 /*  MODULE VARIABLES                                                         */
@@ -25,72 +25,6 @@ using test_signature = void(nw::algo, std::ifstream&, std::ofstream&);
 constexpr int match = 1;
 constexpr int miss  = -1;
 constexpr int gap   = -2;
-
-/*****************************************************************************/
-/*  TEST FUNCTIONS                                                           */
-/*****************************************************************************/
-
-void fill(nw::algo algo, std::ifstream& input, std::ofstream& output)
-{
-    std::string line;
-
-    while (std::getline(input, line))
-    {
-        std::istringstream iss(line);
-
-        std::string src;
-        std::string ref;
-
-        iss >> src >> ref;
-
-        auto creator = nw::creator(algo);
-
-        auto begin = std::chrono::high_resolution_clock::now();
-
-        auto nw = creator.create(match, miss, gap);
-        nw->fill(ref, src);
-
-        auto end     = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
-
-        std::size_t rw = nw->row_count() - 1;
-        std::size_t cl = nw->col_count() - 1;
-
-        std::cout << "Exec Time: " << elapsed.count() << '\n';
-        output << (*nw)(rw, cl) << ',' << elapsed.count() << '\n';
-    }
-}
-
-void score(nw::algo algo, std::ifstream& input, std::ofstream& output)
-{
-    std::string line;
-
-    while (std::getline(input, line))
-    {
-        std::istringstream iss(line);
-
-        std::string src;
-        std::string ref;
-
-        iss >> src >> ref;
-
-        auto creator = nw::creator(algo);
-
-        auto begin = std::chrono::high_resolution_clock::now();
-
-        auto nw    = creator.create(match, miss, gap);
-        int  score = nw->score(ref, src);
-
-        auto end     = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
-
-        std::size_t rw = nw->row_count() - 1;
-        std::size_t cl = nw->col_count() - 1;
-
-        std::cout << "Exec Time: " << elapsed.count() << '\n';
-        output << score << ',' << elapsed.count() << '\n';
-    }
-}
 
 /*****************************************************************************/
 /*  MAIN APPLICATION                                                         */
@@ -103,9 +37,9 @@ int main(int argc, char const* argv[])
         {"serial", nw::algo::serial},
     };
 
-    std::unordered_map<std::string, std::function<test_signature>> test = {
-        {"fill",  fill },
-        {"score", score}
+    std::unordered_map<std::string, test_fn> test = {
+        {"fill",  &nw::aligner::fill },
+        {"score", &nw::aligner::score}
     };
 
     auto find_opt = [&](std::string&& target)
@@ -167,7 +101,33 @@ int main(int argc, char const* argv[])
         return -1;
     }
 
-    test[*(func + 1)](algo[*(type + 1)], input, output);
+    std::string line;
+
+    while (std::getline(input, line))
+    {
+        std::istringstream iss(line);
+
+        std::string src;
+        std::string ref;
+
+        iss >> src >> ref;
+
+        auto creator = nw::creator(algo[*(type + 1)]);
+
+        auto begin = std::chrono::high_resolution_clock::now();
+
+        auto nw    = creator.create(match, miss, gap);
+        int  score = std::invoke(test[*(func + 1)], *nw, ref, src);
+
+        auto end     = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+
+        std::size_t rw = nw->row_count() - 1;
+        std::size_t cl = nw->col_count() - 1;
+
+        std::cout << "Exec Time: " << elapsed.count() << '\n';
+        output << src.size() << ',' << score << ',' << elapsed.count() << '\n';
+    }
 
     std::cout << "Testing has been completed!\n";
     return 0;

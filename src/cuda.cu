@@ -38,94 +38,216 @@ namespace
 /*  DEVICE KERNELS                                                           */
 /*****************************************************************************/
 
-__device__ static void nw_cuda_copy_ad(int*        dst,
-                                       int const*  src,
-                                       std::size_t size)
+__device__ static std::size_t nw_cuda_block_rank()
 {
-    cg::grid_group grid = cg::this_grid();
-    std::size_t    pos  = grid.thread_rank();
+    return ((std::size_t)gridDim.x * gridDim.y * blockIdx.z)
+           + ((std::size_t)blockIdx.y * gridDim.x)
+           + (std::size_t)blockIdx.x;
+}
 
-    while (pos < size)
-    {
-        dst[pos] = src[pos];
-        pos += grid.size();
-    }
+__device__ static std::size_t nw_cuda_thread_rank()
+{
+    return (nw_cuda_block_rank() * blockDim.x * blockDim.y * blockDim.z)
+           + ((std::size_t)threadIdx.z * blockDim.x * blockDim.y)
+           + ((std::size_t)threadIdx.y * blockDim.x)
+           + (std::size_t)threadIdx.x;
+}
+
+__device__ static std::size_t nw_cuda_grid_size()
+{
+    return ((std::size_t)(blockDim.z * gridDim.z))
+           * ((std::size_t)(blockDim.y * gridDim.y))
+           * (((std::size_t)blockDim.x * gridDim.x));
 }
 
 __device__ static void nw_cuda_fill_cell(std::size_t rw,
                                          std::size_t cl,
+                                         nw::trace*  sub,
                                          int*        curr,
                                          int const*  hv,
                                          int const*  diag,
                                          char const* ref,
                                          char const* src)
 {
-    if (rw == 0 || cl == 0)
+    if (rw == 0)
     {
-        *curr = (rw + cl) * nw_cuda_gap;
+        *curr = cl * nw_cuda_gap;
+        *sub  = nw::trace::remove;
+
+        return;
+    }
+
+    if (cl == 0)
+    {
+        *curr = rw * nw_cuda_gap;
+        *sub  = nw::trace::insert;
+
+        return;
+    }
+
+    int pair   = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
+    int insert = nw_cuda_gap;
+    int remove = nw_cuda_gap;
+
+    std::size_t line = (nw_cuda_n_col > nw_cuda_n_row)
+                           ? std::max(nw_cuda_n_row, nw_cuda_n_col)
+                           : std::min(nw_cuda_n_row, nw_cuda_n_col);
+
+    if (rw + cl < line)
+    {
+        pair += *(diag - 1);
+        insert += *(hv - 1);
+        remove += *hv;
+    }
+    else if (rw + cl == line)
+    {
+        pair += *diag;
+        insert += *hv;
+        remove += *(hv + 1);
     }
     else
     {
-        std::size_t lower_line = std::max(nw_cuda_n_row, nw_cuda_n_col);
+        pair += *(diag + 1);
+        insert += *hv;
+        remove += *(hv + 1);
+    }
 
-        int diag_offset;
-        int hv_offset;
-
-        if (rw + cl < lower_line)
+    if (insert > pair)
+    {
+        if (insert > remove)
         {
-            diag_offset = -1;
-            hv_offset   = -1;
-        }
-        else if (rw + cl == lower_line)
-        {
-            diag_offset = 0;
-            hv_offset   = 1;
+            *curr = insert;
+            *sub  = nw::trace::insert;
         }
         else
         {
-            diag_offset = 1;
-            hv_offset   = 1;
+            *curr = remove;
+            *sub  = nw::trace::remove;
         }
-
-        int eps = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
-
-        *curr = std::max({*(diag + diag_offset) + eps,
-                          *(hv + hv_offset) + nw_cuda_gap,
-                          *hv + nw_cuda_gap});
+    }
+    else
+    {
+        if (remove > pair)
+        {
+            *curr = remove;
+            *sub  = nw::trace::remove;
+        }
+        else
+        {
+            *curr = pair;
+            *sub  = nw::trace::pair;
+        }
     }
 }
 
 __device__ static void nw_cuda_fill_ad(std::size_t ad,
+                                       nw::trace*  sub,
                                        int*        curr,
                                        int const*  hv,
                                        int const*  diag,
                                        char const* ref,
                                        char const* src)
 {
-    cg::grid_group grid = cg::this_grid();
-
     std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
     std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
 
-    std::size_t top_row = rw;
-    std::size_t n_vect  = std::min(nw_cuda_n_row - rw, cl + 1);
+    std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
+    std::size_t pos    = nw_cuda_thread_rank();
 
-    rw += grid.thread_rank();
-    cl -= grid.thread_rank();
+    rw += nw_cuda_thread_rank();
+    cl -= nw_cuda_thread_rank();
 
-    while (rw - top_row < n_vect)
+    while (pos < n_vect)
     {
-        std::size_t pos = rw - top_row;
+        nw_cuda_fill_cell(rw, cl, &sub[pos], &curr[pos], &hv[pos], &diag[pos], ref, src);
 
-        nw_cuda_fill_cell(rw, cl, &curr[pos], &hv[pos], &diag[pos], ref, src);
+        rw += nw_cuda_grid_size();
+        cl -= nw_cuda_grid_size();
 
-        rw += grid.size();
-        cl -= grid.size();
+        pos += nw_cuda_grid_size();
+    }
+}
+
+__device__ static void nw_cuda_score_cell(std::size_t rw,
+                                          std::size_t cl,
+                                          int*        curr,
+                                          int const*  hv,
+                                          int const*  diag,
+                                          char const* ref,
+                                          char const* src)
+{
+    if (rw == 0)
+    {
+        *curr = cl * nw_cuda_gap;
+        return;
+    }
+
+    if (cl == 0)
+    {
+        *curr = rw * nw_cuda_gap;
+        return;
+    }
+
+    int pair   = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
+    int insert = nw_cuda_gap;
+    int remove = nw_cuda_gap;
+
+    std::size_t line = (nw_cuda_n_col > nw_cuda_n_row)
+                           ? std::max(nw_cuda_n_row, nw_cuda_n_col)
+                           : std::min(nw_cuda_n_row, nw_cuda_n_col);
+
+    if (rw + cl < line)
+    {
+        pair += *(diag - 1);
+        insert += *(hv - 1);
+        remove += *hv;
+    }
+    else if (rw + cl == line)
+    {
+        pair += *diag;
+        insert += *hv;
+        remove += *(hv + 1);
+    }
+    else
+    {
+        pair += *(diag + 1);
+        insert += *hv;
+        remove += *(hv + 1);
+    }
+
+    *curr = std::max({pair, insert, remove});
+}
+
+__device__ static void nw_cuda_score_ad(std::size_t ad,
+                                        int*        curr,
+                                        int const*  hv,
+                                        int const*  diag,
+                                        char const* ref,
+                                        char const* src)
+{
+    std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
+    std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
+
+    std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
+    std::size_t pos    = nw_cuda_thread_rank();
+
+    rw += nw_cuda_thread_rank();
+    cl -= nw_cuda_thread_rank();
+
+    while (pos < n_vect)
+    {
+        nw_cuda_score_cell(rw, cl, &curr[pos], &hv[pos], &diag[pos], ref, src);
+
+        rw += nw_cuda_grid_size();
+        cl -= nw_cuda_grid_size();
+
+        pos += nw_cuda_grid_size();
     }
 }
 
 __global__ static void nw_cuda_fill(std::size_t from,
                                     std::size_t to,
+                                    nw::trace*  sub,
                                     int*        curr,
                                     int*        hv,
                                     int*        diag,
@@ -134,31 +256,20 @@ __global__ static void nw_cuda_fill(std::size_t from,
 {
     cg::grid_group grid = cg::this_grid();
 
-    int* d_hv   = hv;
-    int* d_diag = diag;
-
-    auto ad_length = [](std::size_t ad)
-    {
-        std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
-        std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
-
-        return std::min(nw_cuda_n_row - rw, cl + 1);
-    };
-
     for (std::size_t ad = from; ad < to; ++ad)
     {
         cg::sync(grid);
 
-        nw_cuda_fill_ad(ad, curr, hv, diag, ref, src);
+        thrust::swap(diag, hv);
+        thrust::swap(hv, curr);
 
-        diag = hv;
-        hv   = curr;
+        nw_cuda_fill_ad(ad, sub, curr, hv, diag, ref, src);
 
-        curr += ad_length(ad);
+        std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
+        std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
+
+        sub += std::min(nw_cuda_n_row - rw, cl + 1);
     }
-
-    nw_cuda_copy_ad(d_diag, diag, ad_length(to - 2));
-    nw_cuda_copy_ad(d_hv, hv, ad_length(to - 1));
 }
 
 __global__ static void nw_cuda_score(int*        curr,
@@ -177,7 +288,7 @@ __global__ static void nw_cuda_score(int*        curr,
         thrust::swap(diag, hv);
         thrust::swap(hv, curr);
 
-        nw_cuda_fill_ad(ad, curr, hv, diag, ref, src);
+        nw_cuda_score_ad(ad, curr, hv, diag, ref, src);
     }
 }
 
@@ -208,40 +319,36 @@ cuda::cuda(int match, int miss, int gap)
     cudaMemcpyToSymbol(nw_cuda_gap, &gap, sizeof(int));
 }
 
-int& cuda::operator()(std::size_t rw, std::size_t cl)
+nw::trace& cuda::operator()(std::size_t rw, std::size_t cl)
 {
-    std::size_t upper_line = std::min(n_row, n_col);
-    std::size_t lower_line = std::max(n_row, n_col);
+    std::size_t upper = std::min(n_row, n_col);
+    std::size_t lower = std::max(n_row, n_col);
 
     std::size_t ad = rw + cl;
 
     std::size_t pos;
     std::size_t offset;
 
-    if (ad < upper_line)
+    if (ad < upper)
     {
         pos    = ad * (ad + 1) / 2;
         offset = rw;
     }
-    else if (ad < lower_line)
+    else if (ad < lower)
     {
-        std::size_t n_vect = std::min(n_row, n_col);
-
-        pos = upper_line * (upper_line + 1) / 2;
-        pos += (ad - upper_line) * n_vect;
+        pos = upper * (upper + 1) / 2;
+        pos += (ad - upper) * std::min(n_row, n_col);
 
         offset = (n_row < n_col) ? rw : n_col - cl - 1;
     }
     else
     {
-        std::size_t n_diag = n_row + n_col - 1;
+        std::size_t comp = n_row + n_col - ad - 1;
 
-        ad = n_diag - ad;
+        pos = n_row * n_col;
+        pos -= comp * (comp + 1) / 2;
 
-        pos = (n_row * n_col) - 1;
-        pos -= (ad * (ad + 1) / 2);
-
-        offset = (n_row < n_col) ? rw : n_col - cl;
+        offset = n_col - cl - 1;
     }
 
     return matrix[pos + offset];
@@ -257,16 +364,12 @@ std::size_t cuda::col_count() const
     return n_col;
 }
 
-void cuda::fill(std::string const& ref, std::string const& src)
+int cuda::fill(std::string const& ref, std::string const& src)
 {
     std::size_t n_row = src.size() + 1;
     std::size_t n_col = ref.size() + 1;
 
-    if (n_row * n_col > this->n_row * this->n_col)
-    {
-        matrix.reserve(n_row * n_col);
-    }
-    else
+    if (n_row * n_col != this->n_row * this->n_col)
     {
         matrix.resize(n_row * n_col);
         matrix.shrink_to_fit();
@@ -278,102 +381,72 @@ void cuda::fill(std::string const& ref, std::string const& src)
     cudaMemcpyToSymbol(nw_cuda_n_row, &n_row, sizeof(std::size_t));
     cudaMemcpyToSymbol(nw_cuda_n_col, &n_col, sizeof(std::size_t));
 
-    cudaStream_t stream[2];
-
-    cudaStreamCreate(&stream[0]);
-    cudaStreamCreate(&stream[1]);
-
     std::size_t n_vect  = std::min(n_row, n_col);
     std::size_t payload = partition_payload();
 
-    int* buf;
+    auto d_sub = alloc_trace(payload);
 
-    cudaMallocHost(&buf, payload * sizeof(int));
+    auto d_curr = alloc_vect(n_vect);
+    auto d_hv   = alloc_vect(n_vect);
+    auto d_diag = alloc_vect(n_vect);
 
-    int* d_curr[2];
+    auto d_ref = alloc_sequence(ref);
+    auto d_src = alloc_sequence(src);
 
-    cudaMalloc(&d_curr[0], payload * sizeof(int));
-    cudaMalloc(&d_curr[1], payload * sizeof(int));
+    int* p_curr = d_curr.get();
+    int* p_hv   = d_hv.get();
+    int* p_diag = d_diag.get();
 
-    int* d_hv;
-    int* d_diag;
+    auto swap_vects = [&](std::size_t n_iter)
+    {
+        static constexpr std::size_t vect_count = 3;
 
-    cudaMalloc(&d_hv, n_vect * sizeof(int));
-    cudaMalloc(&d_diag, n_vect * sizeof(int));
+        if (n_iter % vect_count == 1)
+        {
+            std::swap(p_diag, p_hv);
+            std::swap(p_hv, p_curr);
+        }
+        else if (n_iter % vect_count == 2)
+        {
+            std::swap(p_curr, p_hv);
+            std::swap(p_hv, p_diag);
+        }
+    };
 
-    char* d_ref;
-    char* d_src;
+    char* p_ref = d_ref.get();
+    char* p_src = d_src.get();
 
-    cudaMalloc(&d_ref, ref.size());
-    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyDefault);
+    nw::trace* p_sub = d_sub.get();
 
-    cudaMalloc(&d_src, src.size());
-    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyDefault);
+    std::size_t from;
+    std::size_t to;
 
-    auto dimension = align_dimension(n_vect);
+    auto [grid, block] = align_dimension(n_vect);
 
-    std::size_t grid  = dimension.first;
-    std::size_t block = dimension.second;
+    void* args[] = {&from, &to, &p_sub, &p_curr, &p_hv, &p_diag, &p_ref, &p_src};
+    void* kernel = nw_cuda_fill;
 
     std::size_t n_diag = n_row + n_col - 1;
 
-    std::size_t start = 0;
-    std::size_t end   = find_submatrix_end(start, payload);
-
-    void* args[] = {&start, &end, &d_curr[0], &d_hv, &d_diag, &d_ref, &d_src};
-    void* kernel = nw_cuda_fill;
-
-    cudaLaunchCooperativeKernel(kernel, grid, block, args, 0, stream[0]);
-
-    int prev = 0;
-    int next = 0;
-
-    for (std::size_t ad = end; ad < n_diag; ad = end)
+    for (std::size_t ad = 0; ad < n_diag; ad = to)
     {
-        std::size_t from = ad;
-        std::size_t to   = find_submatrix_end(ad, payload);
+        from = ad;
+        to   = find_submatrix_end(ad, payload);
 
-        std::size_t size = find_submatrix_size(start, end);
-        cudaMemcpyAsync(buf, d_curr[prev], size, cudaMemcpyDefault, stream[prev]);
+        cudaLaunchCooperativeKernel(kernel, grid, block, args);
+        swap_vects(to - from);
 
-        prev = next;
-        next = !next;
+        std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
+        std::size_t cl = (ad < n_col) ? ad : n_col - 1;
 
-        args[0] = &from;
-        args[1] = &to;
-        args[2] = &d_curr[next];
-
-        cudaStreamSynchronize(stream[prev]);
-        cudaLaunchCooperativeKernel(kernel, grid, block, args, 0, stream[next]);
-
-        std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
-        std::size_t cl = (start < n_col) ? start : n_col - 1;
-
-        std::memcpy(&(*this)(rw, cl), buf, size);
-
-        start = from;
-        end   = to;
+        std::size_t size = find_submatrix_size(from, to);
+        cudaMemcpy(&(*this)(rw, cl), p_sub, size, cudaMemcpyDefault);
     }
 
-    std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
-    std::size_t cl = (start < n_col) ? start : n_col - 1;
+    int score;
+    cudaMemcpy(&score, p_curr, sizeof(int), cudaMemcpyDefault);
 
-    std::size_t size = find_submatrix_size(start, end);
-    cudaMemcpy(&(*this)(rw, cl), d_curr[next], size, cudaMemcpyDefault);
-
-    cudaFree(d_src);
-    cudaFree(d_ref);
-
-    cudaFree(d_diag);
-    cudaFree(d_hv);
-
-    cudaFree(d_curr[1]);
-    cudaFree(d_curr[0]);
-
-    cudaFreeHost(buf);
-
-    cudaStreamDestroy(stream[1]);
-    cudaStreamDestroy(stream[0]);
+    return score;
 }
 
 int cuda::score(std::string const& ref, std::string const& src)
@@ -386,43 +459,30 @@ int cuda::score(std::string const& ref, std::string const& src)
 
     std::size_t n_vect = std::min(n_row, n_col);
 
-    int* d_curr;
-    int* d_hv;
-    int* d_diag;
+    auto d_curr = alloc_vect(n_vect);
+    auto d_hv   = alloc_vect(n_vect);
+    auto d_diag = alloc_vect(n_vect);
 
-    cudaMalloc(&d_curr, n_vect * sizeof(int));
-    cudaMalloc(&d_hv, n_vect * sizeof(int));
-    cudaMalloc(&d_diag, n_vect * sizeof(int));
+    auto d_ref = alloc_sequence(ref);
+    auto d_src = alloc_sequence(src);
 
-    char* d_ref;
-    char* d_src;
+    int* p_curr = d_curr.get();
+    int* p_hv   = d_hv.get();
+    int* p_diag = d_diag.get();
 
-    cudaMalloc(&d_ref, ref.size());
-    cudaMemcpy(d_ref, ref.c_str(), ref.size(), cudaMemcpyDefault);
+    char* p_ref = d_ref.get();
+    char* p_src = d_src.get();
 
-    cudaMalloc(&d_src, src.size());
-    cudaMemcpy(d_src, src.c_str(), src.size(), cudaMemcpyDefault);
-
-    auto dimension = align_dimension(n_vect);
-
-    std::size_t grid  = dimension.first;
-    std::size_t block = dimension.second;
-
-    void* args[] = {&d_curr, &d_hv, &d_diag, &d_ref, &d_src};
+    void* args[] = {&p_curr, &p_hv, &p_diag, &p_ref, &p_src};
     void* kernel = nw_cuda_score;
+
+    auto [grid, block] = align_dimension(n_vect);
 
     cudaLaunchCooperativeKernel(kernel, grid, block, args);
     cudaDeviceSynchronize();
 
     int score;
-    cudaMemcpy(&score, d_curr, sizeof(int), cudaMemcpyDefault);
-
-    cudaFree(d_src);
-    cudaFree(d_ref);
-
-    cudaFree(d_diag);
-    cudaFree(d_hv);
-    cudaFree(d_curr);
+    cudaMemcpy(&score, d_curr.get(), sizeof(int), cudaMemcpyDefault);
 
     return score;
 }
@@ -431,7 +491,7 @@ int cuda::score(std::string const& ref, std::string const& src)
 /*  PRIVATE METHODS                                                          */
 /*****************************************************************************/
 
-std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
+std::pair<dim3, dim3> cuda::align_dimension(std::size_t n_vect)
 {
     std::size_t n_block = (n_vect % max_thread_per_block) ? 1 : 0;
     n_block += n_vect / max_thread_per_block;
@@ -454,7 +514,48 @@ std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
         n_thread = max_thread_per_multiprocessor;
     }
 
-    return std::make_pair(n_block, n_thread);
+    return std::make_pair(dim3(n_block), dim3(n_thread));
+}
+
+nw_cuda_vect cuda::alloc_vect(std::size_t size)
+{
+    int* d_mem;
+    cudaMalloc(&d_mem, size * sizeof(int));
+
+    auto deleter = [](void* ptr)
+    {
+        cudaFree(ptr);
+    };
+
+    return std::unique_ptr<int, decltype(deleter)>(d_mem, deleter);
+}
+
+nw_cuda_trace cuda::alloc_trace(std::size_t size)
+{
+    nw::trace* d_mem;
+    cudaMalloc(&d_mem, size * sizeof(nw::trace));
+
+    auto deleter = [](void* ptr)
+    {
+        cudaFree(ptr);
+    };
+
+    return std::unique_ptr<nw::trace, decltype(deleter)>(d_mem, deleter);
+}
+
+nw_cuda_sequence cuda::alloc_sequence(std::string const& seq)
+{
+    char* d_seq;
+
+    cudaMalloc(&d_seq, seq.size());
+    cudaMemcpy(d_seq, seq.c_str(), seq.size(), cudaMemcpyDefault);
+
+    auto deleter = [](void* ptr)
+    {
+        cudaFree(ptr);
+    };
+
+    return std::unique_ptr<char, decltype(deleter)>(d_seq, deleter);
 }
 
 std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
@@ -480,51 +581,29 @@ std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
 
 std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
 {
-    std::size_t upper_line = std::min(n_row, n_col);
-    std::size_t lower_line = std::max(n_row, n_col);
+    std::size_t carry = 0;
 
-    std::size_t n_diag = n_row + n_col - 1;
+    std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
+    std::size_t cl = (start < n_col) ? start : n_col - 1;
 
-    std::size_t size = n_row * n_col;
+    auto from = &(*this)(rw, cl);
 
-    if (start < upper_line)
+    if (end != n_row + n_col - 1)
     {
-        size -= (start * (start + 1)) / 2;
-    }
-    else if (start < lower_line)
-    {
-        std::size_t n_vect = std::min(n_row, n_col);
-
-        size -= (upper_line * (upper_line + 1) / 2);
-        size -= (start - upper_line) * n_vect;
+        rw = (end < n_col) ? 0 : end - n_col + 1;
+        cl = (end < n_col) ? end : n_col - 1;
     }
     else
     {
-        start = n_diag - start;
-        size  = (start * (start + 1)) / 2;
+        rw = n_row - 1;
+        cl = n_col - 1;
+
+        carry = 1;
     }
 
-    if (end < upper_line)
-    {
-        size = (end * (end + 1)) / 2;
-        size -= (start * (start + 1)) / 2;
-    }
-    else if (end < lower_line)
-    {
-        std::size_t n_vect = std::min(n_row, n_col);
+    auto to = &(*this)(rw, cl);
 
-        size -= (lower_line - end) * n_vect;
-
-        end = n_diag - end;
-        size -= (end * (end + 1)) / 2;
-    }
-    else
-    {
-        end = n_diag - end;
-        size -= (end * (end + 1)) / 2;
-    }
-
-    return size * sizeof(int);
+    return (std::distance(from, to) + carry) * sizeof(nw::trace);
 }
 
 std::size_t cuda::partition_payload()

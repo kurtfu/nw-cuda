@@ -7,6 +7,17 @@
 
 #include "aligner.hpp"
 
+#include <cuda_runtime.h>
+#include <memory>
+
+/*****************************************************************************/
+/*  TYPE ALIASES                                                             */
+/*****************************************************************************/
+
+using nw_cuda_sequence = std::unique_ptr<char, void (*)(void*)>;
+using nw_cuda_trace    = std::unique_ptr<nw::trace, void (*)(void*)>;
+using nw_cuda_vect     = std::unique_ptr<int, void (*)(void*)>;
+
 /*****************************************************************************/
 /*  DATA TYPES                                                               */
 /*****************************************************************************/
@@ -22,13 +33,17 @@ namespace nw
         std::size_t row_count() const override;
         std::size_t col_count() const override;
 
-        int& operator()(std::size_t rw, std::size_t cl) override;
+        trace& operator()(std::size_t rw, std::size_t cl) override;
 
-        void fill(std::string const& ref, std::string const& src) override;
-        int  score(std::string const& ref, std::string const& src) override;
+        int fill(std::string const& ref, std::string const& src) override;
+        int score(std::string const& ref, std::string const& src) override;
 
     private:
-        std::pair<std::size_t, std::size_t> align_dimension(std::size_t n_vect);
+        std::pair<dim3, dim3> align_dimension(std::size_t n_vect);
+
+        nw_cuda_sequence alloc_sequence(std::string const& seq);
+        nw_cuda_trace    alloc_trace(std::size_t size);
+        nw_cuda_vect     alloc_vect(std::size_t size);
 
         std::size_t find_submatrix_end(std::size_t start, std::size_t payload);
         std::size_t find_submatrix_size(std::size_t start, std::size_t end);

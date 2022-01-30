@@ -22,10 +22,13 @@ namespace nw
         std::size_t row_count() const override;
         std::size_t col_count() const override;
 
-        int& operator()(std::size_t rw, std::size_t cl) override;
+        trace& operator()(std::size_t rw, std::size_t cl) override;
 
-        void fill(std::string const& ref, std::string const& src) override;
-        int  score(std::string const& ref, std::string const& src) override;
+        int fill(std::string const& ref, std::string const& src) override;
+        int score(std::string const& ref, std::string const& src) override;
+
+    private:
+        trace point(int pair, int insert, int remove);
     };
 }
 

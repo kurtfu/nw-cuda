@@ -22,7 +22,7 @@ serial::serial(int match, int miss, int gap)
     this->gap   = gap;
 }
 
-int& serial::operator()(std::size_t rw, std::size_t cl)
+nw::trace& serial::operator()(std::size_t rw, std::size_t cl)
 {
     return matrix[rw * n_col + cl];
 }
@@ -37,16 +37,12 @@ std::size_t serial::col_count() const
     return n_col;
 }
 
-void serial::fill(std::string const& ref, std::string const& src)
+int serial::fill(std::string const& ref, std::string const& src)
 {
-    std::size_t n_row = std::min(ref.size(), src.size()) + 1;
-    std::size_t n_col = std::max(ref.size(), src.size()) + 1;
+    std::size_t n_row = src.size() + 1;
+    std::size_t n_col = ref.size() + 1;
 
-    if (n_row * n_col > this->n_row * this->n_col)
-    {
-        matrix.reserve(n_row * n_col);
-    }
-    else
+    if (n_row * n_col != this->n_row * this->n_col)
     {
         matrix.resize(n_row * n_col);
         matrix.shrink_to_fit();
@@ -55,30 +51,42 @@ void serial::fill(std::string const& ref, std::string const& src)
     this->n_row = n_row;
     this->n_col = n_col;
 
+    std::vector<int> prev(n_col);
+    std::vector<int> curr(n_col);
+
     for (std::size_t cl = 0; cl < n_col; ++cl)
     {
-        (*this)(0, cl) = cl * gap;
+        curr[cl]       = cl * gap;
+        (*this)(0, cl) = nw::trace::remove;
     }
 
     for (std::size_t rw = 1; rw < n_row; ++rw)
     {
-        (*this)(rw, 0) = rw * gap;
+        std::swap(prev, curr);
+
+        curr[0]        = rw * gap;
+        (*this)(rw, 0) = nw::trace::insert;
 
         for (std::size_t cl = 1; cl < n_col; ++cl)
         {
-            int eps = (ref[cl - 1] == src[rw - 1]) ? match : miss;
+            int sig = (ref[cl - 1] == src[rw - 1]) ? match : miss;
 
-            (*this)(rw, cl) = std::max({(*this)(rw - 1, cl - 1) + eps,
-                                        (*this)(rw - 1, cl) + gap,
-                                        (*this)(rw, cl - 1) + gap});
+            int pair   = prev[cl - 1] + sig;
+            int insert = prev[cl] + gap;
+            int remove = curr[cl - 1] + gap;
+
+            curr[cl]        = std::max({pair, insert, remove});
+            (*this)(rw, cl) = point(pair, insert, remove);
         }
     }
+
+    return curr[n_col - 1];
 }
 
 int serial::score(std::string const& ref, std::string const& src)
 {
-    std::size_t n_row = std::min(ref.size(), src.size()) + 1;
-    std::size_t n_col = std::max(ref.size(), src.size()) + 1;
+    std::size_t n_row = src.size() + 1;
+    std::size_t n_col = ref.size() + 1;
 
     std::vector<int> prev(n_col);
     std::vector<int> curr(n_col);
@@ -95,13 +103,31 @@ int serial::score(std::string const& ref, std::string const& src)
 
         for (std::size_t cl = 1; cl < n_col; ++cl)
         {
-            int eps = (ref[cl - 1] == src[rw - 1]) ? match : miss;
+            int sig = (ref[cl - 1] == src[rw - 1]) ? match : miss;
 
-            curr[cl] = std::max({prev[cl - 1] + eps,
-                                 prev[cl] + gap,
-                                 curr[cl - 1] + gap});
+            int pair   = prev[cl - 1] + sig;
+            int insert = prev[cl] + gap;
+            int remove = curr[cl - 1] + gap;
+
+            curr[cl] = std::max({pair, insert, remove});
         }
     }
 
-    return curr.back();
+    return curr[n_col - 1];
+}
+
+/*****************************************************************************/
+/*  PRIVATE METHODS                                                          */
+/*****************************************************************************/
+
+nw::trace serial::point(int pair, int insert, int remove)
+{
+    if (insert > pair)
+    {
+        return (insert > remove) ? nw::trace::insert : nw::trace::remove;
+    }
+    else
+    {
+        return (remove > pair) ? nw::trace::remove : nw::trace::pair;
+    }
 }
