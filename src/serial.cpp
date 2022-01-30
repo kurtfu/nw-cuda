@@ -42,11 +42,7 @@ int serial::fill(std::string const& ref, std::string const& src)
     std::size_t n_row = src.size() + 1;
     std::size_t n_col = ref.size() + 1;
 
-    if (n_row * n_col > this->n_row * this->n_col)
-    {
-        matrix.reserve(n_row * n_col);
-    }
-    else
+    if (n_row * n_col != this->n_row * this->n_col)
     {
         matrix.resize(n_row * n_col);
         matrix.shrink_to_fit();
@@ -79,7 +75,7 @@ int serial::fill(std::string const& ref, std::string const& src)
             int insert = prev[cl] + gap;
             int remove = curr[cl - 1] + gap;
 
-            curr[cl] = std::max({pair, insert, remove});
+            curr[cl]        = std::max({pair, insert, remove});
             (*this)(rw, cl) = point(pair, insert, remove);
         }
     }

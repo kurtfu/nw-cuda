@@ -351,11 +351,7 @@ int cuda::fill(std::string const& ref, std::string const& src)
     std::size_t n_row = src.size() + 1;
     std::size_t n_col = ref.size() + 1;
 
-    if (n_row * n_col > this->n_row * this->n_col)
-    {
-        matrix.reserve(n_row * n_col);
-    }
-    else
+    if (n_row * n_col != this->n_row * this->n_col)
     {
         matrix.resize(n_row * n_col);
         matrix.shrink_to_fit();
@@ -370,7 +366,7 @@ int cuda::fill(std::string const& ref, std::string const& src)
     std::size_t n_vect  = std::min(n_row, n_col);
     std::size_t payload = partition_payload();
 
-    auto d_sub  = alloc_trace(payload);
+    auto d_sub = alloc_trace(payload);
 
     auto d_curr = alloc_vect(n_vect);
     auto d_hv   = alloc_vect(n_vect);
