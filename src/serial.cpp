@@ -80,6 +80,7 @@ int serial::fill(std::string const& ref, std::string const& src)
             int remove = curr[cl - 1] + gap;
 
             curr[cl] = std::max({pair, insert, remove});
+            (*this)(rw, cl) = point(pair, insert, remove);
         }
     }
 
@@ -117,4 +118,20 @@ int serial::score(std::string const& ref, std::string const& src)
     }
 
     return curr[n_col - 1];
+}
+
+/*****************************************************************************/
+/*  PRIVATE METHODS                                                          */
+/*****************************************************************************/
+
+nw::trace serial::point(int pair, int insert, int remove)
+{
+    if (insert > pair)
+    {
+        return (insert > remove) ? nw::trace::insert : nw::trace::remove;
+    }
+    else
+    {
+        return (remove > pair) ? nw::trace::remove : nw::trace::pair;
+    }
 }
