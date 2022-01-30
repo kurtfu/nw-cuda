@@ -14,7 +14,7 @@
 
 namespace nw
 {
-    enum class trace
+    enum class trace : unsigned char
     {
         pair,
         insert,
