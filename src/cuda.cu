@@ -491,7 +491,7 @@ int cuda::score(std::string const& ref, std::string const& src)
 /*  PRIVATE METHODS                                                          */
 /*****************************************************************************/
 
-std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
+std::pair<dim3, dim3> cuda::align_dimension(std::size_t n_vect)
 {
     std::size_t n_block = (n_vect % max_thread_per_block) ? 1 : 0;
     n_block += n_vect / max_thread_per_block;
@@ -514,7 +514,7 @@ std::pair<std::size_t, std::size_t> cuda::align_dimension(std::size_t n_vect)
         n_thread = max_thread_per_multiprocessor;
     }
 
-    return std::make_pair(n_block, n_thread);
+    return std::make_pair(dim3(n_block), dim3(n_thread));
 }
 
 nw_cuda_vect cuda::alloc_vect(std::size_t size)

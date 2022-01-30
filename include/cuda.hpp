@@ -6,6 +6,8 @@
 /*****************************************************************************/
 
 #include "aligner.hpp"
+
+#include <cuda_runtime.h>
 #include <memory>
 
 /*****************************************************************************/
@@ -37,7 +39,7 @@ namespace nw
         int score(std::string const& ref, std::string const& src) override;
 
     private:
-        std::pair<std::size_t, std::size_t> align_dimension(std::size_t n_vect);
+        std::pair<dim3, dim3> align_dimension(std::size_t n_vect);
 
         nw_cuda_sequence alloc_sequence(std::string const& seq);
         nw_cuda_trace    alloc_trace(std::size_t size);
