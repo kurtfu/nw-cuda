@@ -27,16 +27,6 @@ nw::trace& serial::operator()(std::size_t rw, std::size_t cl)
     return matrix[rw * n_col + cl];
 }
 
-std::size_t serial::row_count() const
-{
-    return n_row;
-}
-
-std::size_t serial::col_count() const
-{
-    return n_col;
-}
-
 int serial::fill(std::string const& ref, std::string const& src)
 {
     std::size_t n_row = src.size() + 1;

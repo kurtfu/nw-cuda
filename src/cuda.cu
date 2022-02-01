@@ -354,16 +354,6 @@ nw::trace& cuda::operator()(std::size_t rw, std::size_t cl)
     return matrix[pos + offset];
 }
 
-std::size_t cuda::row_count() const
-{
-    return n_row;
-}
-
-std::size_t cuda::col_count() const
-{
-    return n_col;
-}
-
 int cuda::fill(std::string const& ref, std::string const& src)
 {
     std::size_t n_row = src.size() + 1;

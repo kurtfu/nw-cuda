@@ -122,9 +122,6 @@ int main(int argc, char const* argv[])
         auto end     = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
 
-        std::size_t rw = nw->row_count() - 1;
-        std::size_t cl = nw->col_count() - 1;
-
         std::cout << "Exec Time: " << elapsed.count() << '\n';
         output << src.size() << ',' << score << ',' << elapsed.count() << '\n';
     }
