@@ -2,21 +2,20 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include <algorithm>
 #include <chrono>
 #include <fstream>
-#include <functional>
 #include <iostream>
 #include <sstream>
 #include <unordered_map>
 
 #include "creator.hpp"
+#include "parser.hpp"
 
 /*****************************************************************************/
 /*  TYPE ALIASES                                                             */
 /*****************************************************************************/
 
-using test_fn = int(nw::aligner::*)(std::string const&, std::string const&);
+using test_fn = int (nw::aligner::*)(std::string const&, std::string const&);
 
 /*****************************************************************************/
 /*  MODULE VARIABLES                                                         */
@@ -42,62 +41,46 @@ int main(int argc, char const* argv[])
         {"score", &nw::aligner::score}
     };
 
-    auto find_opt = [&](std::string&& target)
-    {
-        auto opt = std::find(argv, argv + argc, target);
-        return (opt == argv + argc || (opt + 1) == argv + argc) ? nullptr : opt;
-    };
+    cli::parser parser("nw", " - Needleman-Wunsch example program");
 
-    auto samples = find_opt("--input");
+    parser.add_option("a,algo", "Specify the algorithm", cli::type<std::string>());
+    parser.add_option("h,help", "Display help");
+    parser.add_option("i,input", "Specify the input samples", cli::type<std::string>());
+    parser.add_option("o,output", "Specify the output file", cli::type<std::string>());
+    parser.add_option("t,test", "Specify the test function", cli::type<std::string>());
 
-    if (samples == nullptr)
+    auto result = parser.parse(argc, argv);
+
+    if (result.count("help"))
     {
-        std::cerr << "Input file must be specified with \'--input\'\n";
-        return -1;
+        std::cout << parser.help() << '\n';
+        return 0;
     }
 
-    auto log = find_opt("--output");
+    auto samples = result["input"].as<std::string>();
+    auto log     = result["output"].as<std::string>();
 
-    if (log == nullptr)
-    {
-        std::cerr << "Output file must be specified with \'--output\'\n";
-        return -1;
-    }
-
-    auto type = find_opt("--algo");
-
-    if (type == nullptr)
-    {
-        std::cerr << "Algorithm type must be specified with \'--algo\'\n";
-        return -1;
-    }
-
-    if (algo.find(*(type + 1)) == algo.end())
-    {
-        std::cerr << *(type + 1) << " is not a valid algorithm type\n";
-        return -1;
-    }
-
-    std::ifstream input(*(samples + 1));
-    std::ofstream output(*(log + 1));
+    std::ifstream input(samples);
+    std::ofstream output(log);
 
     if (input.is_open() == false)
     {
-        std::cerr << *(samples + 1) << " is not a valid input\n";
+        std::cerr << samples << " is not a valid input\n";
         return -1;
     }
 
-    auto func = find_opt("--test");
+    auto func = result["test"].as<std::string>();
+    auto type = result["algo"].as<std::string>();
 
-    if (func == nullptr)
+    if (test.find(func) == test.end())
     {
-        std::cerr << "Test function must be specified with \'--test\'\n";
+        std::cerr << func << " is not a valid test function\n";
         return -1;
     }
 
-    if (test.find(*(func + 1)) == test.end())
+    if (algo.find(type) == algo.end())
     {
-        std::cerr << *(func + 1) << " is not a valid test function\n";
+        std::cerr << type << " is not a valid algorithm type\n";
         return -1;
     }
 
@@ -112,12 +95,12 @@ int main(int argc, char const* argv[])
 
         iss >> src >> ref;
 
-        auto creator = nw::creator(algo[*(type + 1)]);
+        auto creator = nw::creator(algo[type]);
 
         auto begin = std::chrono::high_resolution_clock::now();
 
         auto nw    = creator.create(match, miss, gap);
-        int  score = std::invoke(test[*(func + 1)], *nw, ref, src);
+        int  score = std::invoke(test[func], *nw, ref, src);
 
         auto end     = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
