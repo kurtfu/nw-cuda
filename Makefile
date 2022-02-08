@@ -34,9 +34,10 @@ IPATH = ${PROJ_PATH}/include \
         ${PROJ_PATH}/vendor/cxxopts/include
 
 # The tag describes the source files of the project.
-SRC  = $(wildcard ${PROJ_PATH}/*.cpp)     \
-       $(wildcard ${PROJ_PATH}/src/*.cpp) \
-       $(wildcard ${PROJ_PATH}/src/*.cu)
+SRC  = $(wildcard ${PROJ_PATH}/*.cpp)         \
+       $(wildcard ${PROJ_PATH}/src/cli/*.cpp) \
+       $(wildcard ${PROJ_PATH}/src/nw/*.cpp)  \
+       $(wildcard ${PROJ_PATH}/src/nw/*.cu)
 
 # The tag describes the object files of the project.
 OBJ  = $(patsubst ${PROJ_PATH}/%.cpp,${BUILD_PATH}/%.o, ${SRC})
