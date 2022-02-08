@@ -8,8 +8,8 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "creator.hpp"
-#include "parser.hpp"
+#include "cli/parser.hpp"
+#include "nw/creator.hpp"
 
 /*****************************************************************************/
 /*  TYPE ALIASES                                                             */
