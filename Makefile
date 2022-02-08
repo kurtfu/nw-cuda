@@ -30,7 +30,8 @@ endif
 #------------------------------------------------------------------------------
 
 # The tag describes the search path for header files of the project.
-IPATH = ${PROJ_PATH}/include
+IPATH = ${PROJ_PATH}/include \
+        ${PROJ_PATH}/vendor/cxxopts/include
 
 # The tag describes the source files of the project.
 SRC  = $(wildcard ${PROJ_PATH}/*.cpp)     \
