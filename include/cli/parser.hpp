@@ -5,8 +5,8 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "result.hpp"
-#include "value.hpp"
+#include "cli/result.hpp"
+#include "cli/value.hpp"
 
 /*****************************************************************************/
 /*  DATA TYPES                                                               */

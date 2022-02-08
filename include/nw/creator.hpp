@@ -5,7 +5,7 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "aligner.hpp"
+#include "nw/aligner.hpp"
 
 #include <functional>
 #include <memory>

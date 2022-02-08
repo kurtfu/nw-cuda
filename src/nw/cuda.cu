@@ -2,7 +2,7 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "cuda.hpp"
+#include "nw/cuda.hpp"
 
 #include <algorithm>
 #include <cooperative_groups.h>

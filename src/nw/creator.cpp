@@ -2,10 +2,10 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "creator.hpp"
+#include "nw/creator.hpp"
 
-#include "cuda.hpp"
-#include "serial.hpp"
+#include "nw/cuda.hpp"
+#include "nw/serial.hpp"
 
 /*****************************************************************************/
 /*  USING DECLERATIONS                                                       */

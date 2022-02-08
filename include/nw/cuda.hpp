@@ -5,7 +5,7 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "aligner.hpp"
+#include "nw/aligner.hpp"
 
 #include <cuda_runtime.h>
 #include <memory>
