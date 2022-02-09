@@ -159,7 +159,13 @@ __device__ static void nw_cuda_fill_ad(std::size_t ad,
 
     while (pos < n_vect)
     {
-        nw_cuda_fill_cell(rw, cl, &sub[pos], &curr[pos], &hv[pos], &diag[pos], ref, src);
+        nw::trace* p_sub = &sub[pos];
+
+        int*       p_curr = &curr[pos];
+        int const* p_hv   = &hv[pos];
+        int const* p_diag = &diag[pos];
+
+        nw_cuda_fill_cell(rw, cl, p_sub, p_curr, p_hv, p_diag, ref, src);
 
         rw += nw_cuda_grid_size();
         cl -= nw_cuda_grid_size();
