@@ -21,52 +21,28 @@ using test_fn = int (nw::aligner::*)(std::string const&, std::string const&);
 /*  MODULE VARIABLES                                                         */
 /*****************************************************************************/
 
-constexpr int match = 1;
-constexpr int miss  = -1;
-constexpr int gap   = -2;
+static std::unordered_map<std::string, nw::algo> algo = {
+    {"cuda",   nw::algo::cuda  },
+    {"serial", nw::algo::serial},
+};
+
+static std::unordered_map<std::string, test_fn> test = {
+    {"fill",  &nw::aligner::fill },
+    {"score", &nw::aligner::score}
+};
 
 /*****************************************************************************/
-/*  MAIN APPLICATION                                                         */
+/*  MODULE FUNCTIONS                                                         */
 /*****************************************************************************/
 
-int main(int argc, char const* argv[])
+cli::result parse_arguments(cli::parser& parser, int argc, char const* argv[])
 {
-    std::unordered_map<std::string, nw::algo> algo = {
-        {"cuda",   nw::algo::cuda  },
-        {"serial", nw::algo::serial},
-    };
-
-    std::unordered_map<std::string, test_fn> test = {
-        {"fill",  &nw::aligner::fill },
-        {"score", &nw::aligner::score}
-    };
-
-    cli::parser parser("nw", " - Needleman-Wunsch example program");
-
-    parser.add_option("a,algo", "Specify the algorithm", cli::type<std::string>());
-    parser.add_option("h,help", "Display help");
-    parser.add_option("i,input", "Specify the input samples", cli::type<std::string>());
-    parser.add_option("o,output", "Specify the output file", cli::type<std::string>());
-    parser.add_option("t,test", "Specify the test function", cli::type<std::string>());
-
     auto result = parser.parse(argc, argv);
 
     if (result.count("help"))
     {
         std::cout << parser.help() << '\n';
-        return 0;
-    }
-
-    auto samples = result["input"].as<std::string>();
-    auto log     = result["output"].as<std::string>();
-
-    std::ifstream input(samples);
-    std::ofstream output(log);
-
-    if (input.is_open() == false)
-    {
-        std::cerr << samples << " is not a valid input\n";
-        return -1;
+        std::exit(EXIT_SUCCESS);
     }
 
     auto func = result["test"].as<std::string>();
@@ -74,15 +50,41 @@ int main(int argc, char const* argv[])
 
     if (test.find(func) == test.end())
     {
-        std::cerr << func << " is not a valid test function\n";
-        return -1;
+        std::cerr << func + " is not a valid test function\n";
+        std::exit(EXIT_FAILURE);
     }
 
     if (algo.find(type) == algo.end())
     {
-        std::cerr << type << " is not a valid algorithm type\n";
-        return -1;
+        std::cerr << type + " is not a valid algorithm type\n";
+        std::exit(EXIT_FAILURE);
     }
+
+    auto samples = result["input"].as<std::string>();
+
+    if (std::ifstream(samples).good() == false)
+    {
+        std::cerr << '\'' + samples + "\' is not existing\n";
+        std::exit(EXIT_FAILURE);
+    }
+
+    return result;
+}
+
+void process_results(cli::result const& result)
+{
+    constexpr int match = 1;
+    constexpr int miss  = -1;
+    constexpr int gap   = -2;
+
+    auto samples = result["input"].as<std::string>();
+    auto log     = result["output"].as<std::string>();
+
+    std::ifstream input(samples);
+    std::ofstream output(log);
+
+    auto func = result["test"].as<std::string>();
+    auto type = result["algo"].as<std::string>();
 
     std::string line;
 
@@ -110,5 +112,33 @@ int main(int argc, char const* argv[])
     }
 
     std::cout << "Testing has been completed!\n";
+}
+
+/*****************************************************************************/
+/*  MAIN APPLICATION                                                         */
+/*****************************************************************************/
+
+int main(int argc, char const* argv[])
+{
+    cli::parser parser("nw");
+
+    auto type = cli::type<std::string>();
+
+    parser.add_option("a,algo", "Specify the algorithm", type, "ALGORITHM");
+    parser.add_option("h,help", "Display help");
+    parser.add_option("i,input", "Specify the input samples", type, "FILE");
+    parser.add_option("o,output", "Specify the output file", type, "FILE");
+    parser.add_option("t,test", "Specify the test function", type, "FUNCTION");
+
+    try
+    {
+        auto result = parse_arguments(parser, argc, argv);
+        process_results(result);
+    }
+    catch (std::exception const& ex)
+    {
+        std::cerr << ex.what() << '\n' + parser.help() << '\n';
+    }
+
     return 0;
 }
