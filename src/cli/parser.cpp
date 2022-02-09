@@ -20,7 +20,7 @@ parser::parser(std::string const& program, std::string const& desc)
 
 void parser::add_option(std::string const& opts,
                         std::string const& desc,
-                        cli::value const& type,
+                        cli::value const&  type,
                         std::string const& usage)
 {
     options.add_options()(opts, desc, type, usage);
