@@ -6,8 +6,6 @@
 /*****************************************************************************/
 
 #include "nw/aligner.hpp"
-
-#include <functional>
 #include <memory>
 
 /*****************************************************************************/
@@ -27,7 +25,10 @@ namespace nw
     public:
         creator(approach type);
 
-        std::function<std::unique_ptr<aligner>(int match, int miss, int gap)> create;
+        std::unique_ptr<aligner> create(int match, int miss, int gap);
+
+    private:
+        approach type;
     };
 }
 

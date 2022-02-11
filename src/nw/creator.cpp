@@ -14,40 +14,22 @@
 using nw::creator;
 
 /*****************************************************************************/
-/*  MODULE FUNCTIONS                                                         */
-/*****************************************************************************/
-
-namespace
-{
-    std::unique_ptr<nw::aligner> create_serial(int match, int miss, int gap)
-    {
-        return std::make_unique<nw::serial>(match, miss, gap);
-    }
-
-    std::unique_ptr<nw::aligner> create_cuda(int match, int miss, int gap)
-    {
-        return std::make_unique<nw::cuda>(match, miss, gap);
-    }
-}
-
-/*****************************************************************************/
 /*  PUBLIC METHODS                                                           */
 /*****************************************************************************/
 
 creator::creator(approach type)
+    : type{type}
+{}
+
+std::unique_ptr<nw::aligner> creator::create(int match, int miss, int gap)
 {
     switch (type)
     {
         case approach::serial:
-            create = create_serial;
-            break;
-
+            return std::make_unique<nw::serial>(match, miss, gap);
         case approach::cuda:
-            create = create_cuda;
-            break;
-
+            return std::make_unique<nw::cuda>(match, miss, gap);
         default:
-            create = nullptr;
-            break;
+            return nullptr;
     }
 }
