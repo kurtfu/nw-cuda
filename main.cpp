@@ -21,9 +21,9 @@ using test_fn = int (nw::aligner::*)(std::string const&, std::string const&);
 /*  MODULE VARIABLES                                                         */
 /*****************************************************************************/
 
-static std::unordered_map<std::string, nw::algo> algo = {
-    {"cuda",   nw::algo::cuda  },
-    {"serial", nw::algo::serial},
+static std::unordered_map<std::string, nw::approach> approach = {
+    {"cuda",   nw::approach::cuda  },
+    {"serial", nw::approach::serial},
 };
 
 static std::unordered_map<std::string, test_fn> test = {
@@ -46,7 +46,7 @@ cli::result parse_arguments(cli::parser& parser, int argc, char const* argv[])
     }
 
     auto func = result["test"].as<std::string>();
-    auto type = result["algo"].as<std::string>();
+    auto type = result["approach"].as<std::string>();
 
     if (test.find(func) == test.end())
     {
@@ -54,9 +54,9 @@ cli::result parse_arguments(cli::parser& parser, int argc, char const* argv[])
         std::exit(EXIT_FAILURE);
     }
 
-    if (algo.find(type) == algo.end())
+    if (approach.find(type) == approach.end())
     {
-        std::cerr << type + " is not a valid algorithm type\n";
+        std::cerr << type + " is not a valid approach\n";
         std::exit(EXIT_FAILURE);
     }
 
@@ -84,7 +84,7 @@ void process_results(cli::result const& result)
     std::ofstream output(log);
 
     auto func = result["test"].as<std::string>();
-    auto type = result["algo"].as<std::string>();
+    auto type = result["approach"].as<std::string>();
 
     std::string line;
 
@@ -97,7 +97,7 @@ void process_results(cli::result const& result)
 
         iss >> src >> ref;
 
-        auto creator = nw::creator(algo[type]);
+        auto creator = nw::creator(approach[type]);
 
         auto begin = std::chrono::high_resolution_clock::now();
 
@@ -124,7 +124,7 @@ int main(int argc, char const* argv[])
 
     auto type = cli::type<std::string>();
 
-    parser.add_option("a,algo", "Specify the algorithm", type, "ALGORITHM");
+    parser.add_option("a,approach", "Specify the approach", type, "APPROACH");
     parser.add_option("h,help", "Display help");
     parser.add_option("i,input", "Specify the input samples", type, "FILE");
     parser.add_option("o,output", "Specify the output file", type, "FILE");

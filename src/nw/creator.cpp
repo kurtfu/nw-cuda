@@ -34,15 +34,15 @@ namespace
 /*  PUBLIC METHODS                                                           */
 /*****************************************************************************/
 
-creator::creator(algo type)
+creator::creator(approach type)
 {
     switch (type)
     {
-        case algo::serial:
+        case approach::serial:
             create = create_serial;
             break;
 
-        case algo::cuda:
+        case approach::cuda:
             create = create_cuda;
             break;
 

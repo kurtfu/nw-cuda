@@ -16,7 +16,7 @@
 
 namespace nw
 {
-    enum class algo
+    enum class approach
     {
         serial,
         cuda
@@ -25,7 +25,7 @@ namespace nw
     class creator
     {
     public:
-        creator(algo type);
+        creator(approach type);
 
         std::function<std::unique_ptr<aligner>(int match, int miss, int gap)> create;
     };
