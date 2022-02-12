@@ -21,6 +21,8 @@ using test_fn = int (nw::aligner::*)(std::string const&, std::string const&);
 /*  MODULE VARIABLES                                                         */
 /*****************************************************************************/
 
+static cli::parser parser("nw");
+
 static std::unordered_map<std::string, nw::approach> approach = {
     {"cuda",   nw::approach::cuda  },
     {"serial", nw::approach::serial},
@@ -35,16 +37,8 @@ static std::unordered_map<std::string, test_fn> test = {
 /*  MODULE FUNCTIONS                                                         */
 /*****************************************************************************/
 
-cli::result parse_arguments(cli::parser& parser, int argc, char const* argv[])
+void assert_valid(cli::result const& result)
 {
-    auto result = parser.parse(argc, argv);
-
-    if (result.count("help"))
-    {
-        std::cout << parser.help() << '\n';
-        std::exit(EXIT_SUCCESS);
-    }
-
     auto func = result["test"].as<std::string>();
     auto type = result["approach"].as<std::string>();
 
@@ -67,12 +61,16 @@ cli::result parse_arguments(cli::parser& parser, int argc, char const* argv[])
         std::cerr << '\'' + samples + "\' is not existing\n";
         std::exit(EXIT_FAILURE);
     }
-
-    return result;
 }
 
 void process_results(cli::result const& result)
 {
+    if (result.count("help"))
+    {
+        std::cout << parser.help() << '\n';
+        std::exit(EXIT_SUCCESS);
+    }
+
     constexpr int match = 1;
     constexpr int miss  = -1;
     constexpr int gap   = -2;
@@ -120,8 +118,6 @@ void process_results(cli::result const& result)
 
 int main(int argc, char const* argv[])
 {
-    cli::parser parser("nw");
-
     auto type = cli::type<std::string>();
 
     parser.add_option("a,approach", "Specify the approach", type, "APPROACH");
@@ -132,7 +128,9 @@ int main(int argc, char const* argv[])
 
     try
     {
-        auto result = parse_arguments(parser, argc, argv);
+        auto result = parser.parse(argc, argv);
+
+        assert_valid(result);
         process_results(result);
     }
     catch (std::exception const& ex)
