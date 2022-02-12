@@ -84,6 +84,8 @@ void process_results(cli::result const& result)
     auto func = result["test"].as<std::string>();
     auto type = result["approach"].as<std::string>();
 
+    auto creator = nw::creator(approach[type]);
+
     std::string line;
 
     while (std::getline(input, line))
@@ -94,8 +96,6 @@ void process_results(cli::result const& result)
         std::string ref;
 
         iss >> src >> ref;
-
-        auto creator = nw::creator(approach[type]);
 
         auto begin = std::chrono::high_resolution_clock::now();
 
