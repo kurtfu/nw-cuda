@@ -380,14 +380,14 @@ int cuda::fill(std::string const& ref, std::string const& src)
     std::size_t n_vect  = std::min(n_row, n_col);
     std::size_t payload = partition_payload();
 
-    auto d_sub = alloc_trace(payload);
+    auto d_sub = alloc_device_memory<nw::trace>(payload);
 
-    auto d_curr = alloc_vect(n_vect);
-    auto d_hv   = alloc_vect(n_vect);
-    auto d_diag = alloc_vect(n_vect);
+    auto d_curr = alloc_device_memory<int>(n_vect);
+    auto d_hv   = alloc_device_memory<int>(n_vect);
+    auto d_diag = alloc_device_memory<int>(n_vect);
 
-    auto d_ref = alloc_sequence(ref);
-    auto d_src = alloc_sequence(src);
+    auto d_ref = alloc_device_memory<char>(ref.size(), ref.c_str());
+    auto d_src = alloc_device_memory<char>(src.size(), src.c_str());
 
     int* p_curr = d_curr.get();
     int* p_hv   = d_hv.get();
@@ -455,12 +455,12 @@ int cuda::score(std::string const& ref, std::string const& src)
 
     std::size_t n_vect = std::min(n_row, n_col);
 
-    auto d_curr = alloc_vect(n_vect);
-    auto d_hv   = alloc_vect(n_vect);
-    auto d_diag = alloc_vect(n_vect);
+    auto d_curr = alloc_device_memory<int>(n_vect);
+    auto d_hv   = alloc_device_memory<int>(n_vect);
+    auto d_diag = alloc_device_memory<int>(n_vect);
 
-    auto d_ref = alloc_sequence(ref);
-    auto d_src = alloc_sequence(src);
+    auto d_ref = alloc_device_memory<char>(ref.size(), ref.c_str());
+    auto d_src = alloc_device_memory<char>(src.size(), src.c_str());
 
     int* p_curr = d_curr.get();
     int* p_hv   = d_hv.get();
@@ -511,47 +511,6 @@ std::pair<dim3, dim3> cuda::align_dimension(std::size_t n_vect)
     }
 
     return std::make_pair(dim3(n_block), dim3(n_thread));
-}
-
-nw_cuda_vect cuda::alloc_vect(std::size_t size)
-{
-    int* d_mem;
-    cudaMalloc(&d_mem, size * sizeof(int));
-
-    auto deleter = [](void* ptr)
-    {
-        cudaFree(ptr);
-    };
-
-    return std::unique_ptr<int, decltype(deleter)>(d_mem, deleter);
-}
-
-nw_cuda_trace cuda::alloc_trace(std::size_t size)
-{
-    nw::trace* d_mem;
-    cudaMalloc(&d_mem, size * sizeof(nw::trace));
-
-    auto deleter = [](void* ptr)
-    {
-        cudaFree(ptr);
-    };
-
-    return std::unique_ptr<nw::trace, decltype(deleter)>(d_mem, deleter);
-}
-
-nw_cuda_sequence cuda::alloc_sequence(std::string const& seq)
-{
-    char* d_seq;
-
-    cudaMalloc(&d_seq, seq.size());
-    cudaMemcpy(d_seq, seq.c_str(), seq.size(), cudaMemcpyDefault);
-
-    auto deleter = [](void* ptr)
-    {
-        cudaFree(ptr);
-    };
-
-    return std::unique_ptr<char, decltype(deleter)>(d_seq, deleter);
 }
 
 std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
