@@ -12,104 +12,149 @@
 #include "nw/creator.hpp"
 
 /*****************************************************************************/
-/*  TYPE ALIASES                                                             */
+/*  DATA TYPES                                                               */
 /*****************************************************************************/
 
-using test_fn = int (nw::aligner::*)(std::string const&, std::string const&);
+class Profiler
+{
+    using method = int (nw::aligner::*)(std::string const&, std::string const&);
 
-/*****************************************************************************/
-/*  MODULE VARIABLES                                                         */
-/*****************************************************************************/
+    struct Result
+    {
+        int score;
+        std::chrono::milliseconds duration;
+    };
 
-static cli::parser parser("nw");
+public:
+    Profiler(std::string const& approach, std::string const& test)
+    {
+        add_creator(approach);
+        add_test(test);
+    }
 
-static std::unordered_map<std::string, nw::approach> approach = {
-    {"cuda",   nw::approach::cuda  },
-    {"serial", nw::approach::serial},
-};
+    void add_input(std::string const& file)
+    {
+        input.open(file);
 
-static std::unordered_map<std::string, test_fn> test = {
-    {"fill",  &nw::aligner::fill },
-    {"score", &nw::aligner::score}
+        if (input.fail())
+        {
+            throw std::runtime_error("\'" + file + "\' does not exist");
+        }
+    }
+
+    void add_output(std::string const& file)
+    {
+        output.open(file);
+
+        if (output.fail())
+        {
+            throw std::runtime_error("\'" + file + "\' could not be opened");
+        }
+    }
+
+    void profile_samples()
+    {
+        std::string line;
+
+        while (std::getline(input, line))
+        {
+            std::istringstream iss(line);
+
+            std::string src;
+            std::string ref;
+
+            iss >> src >> ref;
+
+            auto result = measure_sample(ref, src);
+
+            auto score    = result.score;
+            auto duration = result.duration.count();
+
+            std::cout << "Exec Time: " << duration << '\n';
+            output << src.size() << ',' << score << ',' << duration << '\n';
+        }
+    }
+
+private:
+    void add_creator(std::string const& type)
+    {
+        static std::unordered_map<std::string, nw::approach> approaches = {
+            {"cuda",   nw::approach::cuda  },
+            {"serial", nw::approach::serial},
+        };
+
+        if (approaches.find(type) == approaches.end())
+        {
+            throw std::runtime_error("\'" + type + "\' is not a valid");
+        }
+
+        creator = std::make_unique<nw::creator>(approaches[type]);
+    }
+
+    void add_test(std::string const& type)
+    {
+        static std::unordered_map<std::string, Profiler::method> tests = {
+            {"fill",  &nw::aligner::fill },
+            {"score", &nw::aligner::score}
+        };
+
+        if (tests.find(type) == tests.end())
+        {
+            throw std::runtime_error("\'" + type + "\' is not a valid");
+        }
+
+        test = tests[type];
+    }
+
+    Result measure_sample(std::string const& ref, std::string const& src)
+    {
+        constexpr int match = 1;
+        constexpr int miss  = -1;
+        constexpr int gap   = -2;
+
+        auto begin = std::chrono::high_resolution_clock::now();
+
+        auto nw    = creator->create(match, miss, gap);
+        int  score = std::invoke(test, *nw, ref, src);
+
+        auto end     = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+
+        return Result{score, elapsed};
+    }
+
+    std::unique_ptr<nw::creator> creator;
+    Profiler::method             test;
+
+    std::ifstream input;
+    std::ofstream output;
 };
 
 /*****************************************************************************/
 /*  MODULE FUNCTIONS                                                         */
 /*****************************************************************************/
 
-void assert_valid(cli::result const& result)
+cli::result parse_program_argumnets(int argc, char const* argv[])
 {
-    auto func = result["test"].as<std::string>();
-    auto type = result["approach"].as<std::string>();
+    cli::parser parser("nw");
 
-    if (test.find(func) == test.end())
-    {
-        std::cerr << func + " is not a valid test function\n";
-        std::exit(EXIT_FAILURE);
-    }
+    auto type = cli::type<std::string>();
 
-    if (approach.find(type) == approach.end())
-    {
-        std::cerr << type + " is not a valid approach\n";
-        std::exit(EXIT_FAILURE);
-    }
+    parser.add_option("a,approach", "Specify the approach", type, "APPROACH");
+    parser.add_option("h,help", "Display help");
+    parser.add_option("i,input", "Specify the input samples", type, "FILE");
+    parser.add_option("o,output", "Specify the output file", type, "FILE");
+    parser.add_option("t,test", "Specify the test method", type, "METHOD");
 
-    auto samples = result["input"].as<std::string>();
+    auto args = parser.parse(argc, argv);
 
-    if (std::ifstream(samples).good() == false)
-    {
-        std::cerr << '\'' + samples + "\' is not existing\n";
-        std::exit(EXIT_FAILURE);
-    }
-}
-
-void process_results(cli::result const& result)
-{
-    if (result.count("help"))
+    if (args.count("help"))
     {
         std::cout << parser.help() << '\n';
         std::exit(EXIT_SUCCESS);
     }
 
-    constexpr int match = 1;
-    constexpr int miss  = -1;
-    constexpr int gap   = -2;
-
-    auto samples = result["input"].as<std::string>();
-    auto log     = result["output"].as<std::string>();
-
-    std::ifstream input(samples);
-    std::ofstream output(log);
-
-    auto func = result["test"].as<std::string>();
-    auto type = result["approach"].as<std::string>();
-
-    auto creator = nw::creator(approach[type]);
-
-    std::string line;
-
-    while (std::getline(input, line))
-    {
-        std::istringstream iss(line);
-
-        std::string src;
-        std::string ref;
-
-        iss >> src >> ref;
-
-        auto begin = std::chrono::high_resolution_clock::now();
-
-        auto nw    = creator.create(match, miss, gap);
-        int  score = std::invoke(test[func], *nw, ref, src);
-
-        auto end     = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
-
-        std::cout << "Exec Time: " << elapsed.count() << '\n';
-        output << src.size() << ',' << score << ',' << elapsed.count() << '\n';
-    }
-
-    std::cout << "Testing has been completed!\n";
+    return args;
 }
 
 /*****************************************************************************/
@@ -118,24 +163,27 @@ void process_results(cli::result const& result)
 
 int main(int argc, char const* argv[])
 {
-    auto type = cli::type<std::string>();
-
-    parser.add_option("a,approach", "Specify the approach", type, "APPROACH");
-    parser.add_option("h,help", "Display help");
-    parser.add_option("i,input", "Specify the input samples", type, "FILE");
-    parser.add_option("o,output", "Specify the output file", type, "FILE");
-    parser.add_option("t,test", "Specify the test function", type, "FUNCTION");
-
     try
     {
-        auto result = parser.parse(argc, argv);
+        auto args = parse_program_argumnets(argc, argv);
 
-        assert_valid(result);
-        process_results(result);
+        auto approach = args["approach"].as<std::string>();
+        auto test     = args["test"].as<std::string>();
+
+        Profiler profiler(approach, test);
+
+        auto samples = args["input"].as<std::string>();
+        auto log     = args["output"].as<std::string>();
+
+        profiler.add_input(samples);
+        profiler.add_output(log);
+
+        profiler.profile_samples();
+        std::cout << "Testing has been completed!\n";
     }
     catch (std::exception const& ex)
     {
-        std::cerr << ex.what() << '\n' + parser.help() << '\n';
+        std::cerr << ex.what() << '\n';
     }
 
     return 0;
