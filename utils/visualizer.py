@@ -1,33 +1,43 @@
 import argparse
 import matplotlib.pyplot as plt
-import numpy as np
-
-from scipy.interpolate import make_interp_spline
 
 
-class Parser:
+class Log:
     def __init__(self, name, file):
         self.name = name
-        self.__file = file
+        self.file = file
 
         self.data = dict()
         self.aver = dict()
 
-    def parse(self):
-        with open(self.__file) as file:
-            self.__read(file)
 
-        next(iter(self.data.values())).pop(0)
-        self.__average()
+class Parser:
+    @classmethod
+    def parse(cls, log):
+        with open(log.file) as file:
+            log.data = cls.__read(file)
 
-    def __read(self, file):
+        log.aver = cls.__average(log.data)
+
+    @classmethod
+    def __read(cls, file):
+        data = dict()
+
         for line in file:
             length, _, time = line.strip().split(',')
-            self.data.setdefault(int(length), list()).append(int(time))
+            data.setdefault(int(length), list()).append(int(time))
 
-    def __average(self):
-        for length, time in self.data.items():
-            self.aver[length] = round(sum(time) / len(time))
+        next(iter(data.values())).pop(0)
+        return data
+
+    @classmethod
+    def __average(cls, data):
+        aver = dict()
+
+        for length, time in data.items():
+            aver[length] = round(sum(time) / len(time))
+
+        return aver
 
 
 class Plotter:
@@ -38,18 +48,16 @@ class Plotter:
         self.__log.append(log)
 
     def plot(self):
-        plt.rcParams['toolbar'] = 'None'
+        self.add_line_graph()
+        plt.show()
 
+    def add_line_graph(self):
         for log in self.__log:
-            log.parse()
-
             x = list(log.aver.keys())
             y = list(log.aver.values())
 
-            spline = make_interp_spline(x, y)
-
-            x = np.linspace(min(x), max(x), len(x) * 10)
-            y = spline(x)
+            plt.rcParams['toolbar'] = 'None'
+            plt.figure("Line Graph")
 
             plt.plot(x, y, label=log.name)
 
@@ -57,7 +65,6 @@ class Plotter:
         plt.ylabel('Execution Time(ms)')
 
         plt.legend()
-        plt.show()
 
 
 if __name__ == '__main__':
@@ -72,6 +79,9 @@ if __name__ == '__main__':
     plotter = Plotter()
 
     for name, file in logs:
-        plotter.add_log(Parser(name, file))
+        log = Log(name, file)
+
+        Parser.parse(log)
+        plotter.add_log(log)
 
     plotter.plot()
