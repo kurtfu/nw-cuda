@@ -22,7 +22,7 @@ namespace cli
 
         void add_option(std::string const& opts,
                         std::string const& desc,
-                        cli::value const&  type  = cli::type<bool>(),
+                        cli::value const& type = cli::type<bool>(),
                         std::string const& usage = "<arg>");
 
         std::string help();

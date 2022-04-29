@@ -48,7 +48,7 @@ int main(int argc, char const* argv[])
     if (log == nullptr)
     {
         std::cerr << "Output file must be specified with \'--output\'\n";
-        return - 1;
+        return -1;
     }
 
     std::ofstream output(*(log + 1));

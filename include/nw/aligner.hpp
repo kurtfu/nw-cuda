@@ -28,7 +28,7 @@ namespace nw
 
         virtual trace& operator()(std::size_t rw, std::size_t cl) = 0;
 
-        virtual int fill(std::string const& ref, std::string const& src)  = 0;
+        virtual int fill(std::string const& ref, std::string const& src) = 0;
         virtual int score(std::string const& ref, std::string const& src) = 0;
 
     protected:

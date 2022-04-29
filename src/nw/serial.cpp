@@ -18,8 +18,8 @@ using nw::serial;
 serial::serial(int match, int miss, int gap)
 {
     this->match = match;
-    this->miss  = miss;
-    this->gap   = gap;
+    this->miss = miss;
+    this->gap = gap;
 }
 
 nw::trace& serial::operator()(std::size_t rw, std::size_t cl)
@@ -46,7 +46,7 @@ int serial::fill(std::string const& ref, std::string const& src)
 
     for (std::size_t cl = 0; cl < n_col; ++cl)
     {
-        curr[cl]       = cl * gap;
+        curr[cl] = cl * gap;
         (*this)(0, cl) = nw::trace::remove;
     }
 
@@ -54,18 +54,18 @@ int serial::fill(std::string const& ref, std::string const& src)
     {
         std::swap(prev, curr);
 
-        curr[0]        = rw * gap;
+        curr[0] = rw * gap;
         (*this)(rw, 0) = nw::trace::insert;
 
         for (std::size_t cl = 1; cl < n_col; ++cl)
         {
             int sig = (ref[cl - 1] == src[rw - 1]) ? match : miss;
 
-            int pair   = prev[cl - 1] + sig;
+            int pair = prev[cl - 1] + sig;
             int insert = prev[cl] + gap;
             int remove = curr[cl - 1] + gap;
 
-            curr[cl]        = std::max({pair, insert, remove});
+            curr[cl] = std::max({pair, insert, remove});
             (*this)(rw, cl) = point(pair, insert, remove);
         }
     }
@@ -95,7 +95,7 @@ int serial::score(std::string const& ref, std::string const& src)
         {
             int sig = (ref[cl - 1] == src[rw - 1]) ? match : miss;
 
-            int pair   = prev[cl - 1] + sig;
+            int pair = prev[cl - 1] + sig;
             int insert = prev[cl] + gap;
             int remove = curr[cl - 1] + gap;
 

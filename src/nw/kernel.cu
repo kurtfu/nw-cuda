@@ -122,7 +122,7 @@ __device__ void kernel::score(std::size_t ad, bool traceback)
         rw += grid.thread_rank();
         cl -= grid.thread_rank();
 
-        int pair   = diag[pos - 1] + ((ref[cl] == src[rw]) ? match : miss);
+        int pair = diag[pos - 1] + ((ref[cl] == src[rw]) ? match : miss);
         int insert = hv[pos - 1] + gap;
         int remove = hv[pos] + gap;
 

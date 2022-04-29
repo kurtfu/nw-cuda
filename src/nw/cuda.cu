@@ -18,8 +18,8 @@ using nw::cuda;
 cuda::cuda(int match, int miss, int gap)
 {
     this->match = match;
-    this->miss  = miss;
-    this->gap   = gap;
+    this->miss = miss;
+    this->gap = gap;
 }
 
 nw::trace& cuda::operator()(std::size_t rw, std::size_t cl)
@@ -34,7 +34,7 @@ nw::trace& cuda::operator()(std::size_t rw, std::size_t cl)
 
     if (ad < upper)
     {
-        pos    = ad * (ad + 1) / 2;
+        pos = ad * (ad + 1) / 2;
         offset = rw;
     }
     else if (ad < lower)
@@ -77,7 +77,7 @@ int cuda::fill(std::string const& ref, std::string const& src)
     for (std::size_t ad = 1; ad < n_diag;)
     {
         std::size_t from = ad;
-        std::size_t to   = find_submatrix_end(ad, payload);
+        std::size_t to = find_submatrix_end(ad, payload);
 
         score = nw.launch(from, to, true);
 
@@ -127,7 +127,7 @@ std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
 {
     std::size_t n_diag = n_row + n_col - 1;
 
-    std::size_t end   = start;
+    std::size_t end = start;
     std::size_t total = 0;
 
     while (end < n_diag && total < payload)
