@@ -66,7 +66,7 @@ int serial::fill(std::string const& ref, std::string const& src)
             int remove = curr[cl - 1] + gap;
 
             curr[cl] = std::max({pair, insert, remove});
-            (*this)(rw, cl) = point(pair, insert, remove);
+            (*this)(rw, cl) = find_trace(pair, insert, remove);
         }
     }
 
@@ -110,14 +110,14 @@ int serial::score(std::string const& ref, std::string const& src)
 /*  PRIVATE METHODS                                                          */
 /*****************************************************************************/
 
-nw::trace serial::point(int pair, int insert, int remove)
+nw::trace serial::find_trace(int pair, int insert, int remove)
 {
-    if (insert > pair)
+    if (pair > insert)
     {
-        return (insert > remove) ? nw::trace::insert : nw::trace::remove;
+        return (pair > remove) ? nw::trace::pair : nw::trace::remove;
     }
     else
     {
-        return (remove > pair) ? nw::trace::remove : nw::trace::pair;
+        return (insert > remove) ? nw::trace::insert : nw::trace::remove;
     }
 }

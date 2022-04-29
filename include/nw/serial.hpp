@@ -25,7 +25,7 @@ namespace nw
         int score(std::string const& ref, std::string const& src) override;
 
     private:
-        trace point(int pair, int insert, int remove);
+        trace find_trace(int pair, int insert, int remove);
     };
 }
 
