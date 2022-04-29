@@ -3,10 +3,7 @@
 /*****************************************************************************/
 
 #include "nw/cuda.hpp"
-
-#include <algorithm>
-#include <cooperative_groups.h>
-#include <thrust/swap.h>
+#include "nw/kernel.cuh"
 
 /*****************************************************************************/
 /*  USING DECLERATIONS                                                       */
@@ -15,314 +12,14 @@
 using nw::cuda;
 
 /*****************************************************************************/
-/*  NAMESPACE ALIASES                                                        */
-/*****************************************************************************/
-
-namespace cg = cooperative_groups;
-
-/*****************************************************************************/
-/*  DEVICE SYMBOLS                                                           */
-/*****************************************************************************/
-
-namespace
-{
-    __constant__ int nw_cuda_match;
-    __constant__ int nw_cuda_miss;
-    __constant__ int nw_cuda_gap;
-
-    __constant__ std::size_t nw_cuda_n_row;
-    __constant__ std::size_t nw_cuda_n_col;
-}
-
-/*****************************************************************************/
-/*  DEVICE KERNELS                                                           */
-/*****************************************************************************/
-
-__device__ static std::size_t nw_cuda_block_rank()
-{
-    return ((std::size_t)gridDim.x * gridDim.y * blockIdx.z)
-           + ((std::size_t)blockIdx.y * gridDim.x)
-           + (std::size_t)blockIdx.x;
-}
-
-__device__ static std::size_t nw_cuda_thread_rank()
-{
-    return (nw_cuda_block_rank() * blockDim.x * blockDim.y * blockDim.z)
-           + ((std::size_t)threadIdx.z * blockDim.x * blockDim.y)
-           + ((std::size_t)threadIdx.y * blockDim.x)
-           + (std::size_t)threadIdx.x;
-}
-
-__device__ static std::size_t nw_cuda_grid_size()
-{
-    return ((std::size_t)(blockDim.z * gridDim.z))
-           * ((std::size_t)(blockDim.y * gridDim.y))
-           * (((std::size_t)blockDim.x * gridDim.x));
-}
-
-__device__ static void nw_cuda_fill_cell(std::size_t rw,
-                                         std::size_t cl,
-                                         nw::trace*  sub,
-                                         int*        curr,
-                                         int const*  hv,
-                                         int const*  diag,
-                                         char const* ref,
-                                         char const* src)
-{
-    if (rw == 0)
-    {
-        *curr = cl * nw_cuda_gap;
-        *sub  = nw::trace::remove;
-
-        return;
-    }
-
-    if (cl == 0)
-    {
-        *curr = rw * nw_cuda_gap;
-        *sub  = nw::trace::insert;
-
-        return;
-    }
-
-    int pair   = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
-    int insert = nw_cuda_gap;
-    int remove = nw_cuda_gap;
-
-    std::size_t line = (nw_cuda_n_col > nw_cuda_n_row)
-                           ? std::max(nw_cuda_n_row, nw_cuda_n_col)
-                           : std::min(nw_cuda_n_row, nw_cuda_n_col);
-
-    if (rw + cl < line)
-    {
-        pair += *(diag - 1);
-        insert += *(hv - 1);
-        remove += *hv;
-    }
-    else if (rw + cl == line)
-    {
-        pair += *diag;
-        insert += *hv;
-        remove += *(hv + 1);
-    }
-    else
-    {
-        pair += *(diag + 1);
-        insert += *hv;
-        remove += *(hv + 1);
-    }
-
-    if (insert > pair)
-    {
-        if (insert > remove)
-        {
-            *curr = insert;
-            *sub  = nw::trace::insert;
-        }
-        else
-        {
-            *curr = remove;
-            *sub  = nw::trace::remove;
-        }
-    }
-    else
-    {
-        if (remove > pair)
-        {
-            *curr = remove;
-            *sub  = nw::trace::remove;
-        }
-        else
-        {
-            *curr = pair;
-            *sub  = nw::trace::pair;
-        }
-    }
-}
-
-__device__ static void nw_cuda_fill_ad(std::size_t ad,
-                                       nw::trace*  sub,
-                                       int*        curr,
-                                       int const*  hv,
-                                       int const*  diag,
-                                       char const* ref,
-                                       char const* src)
-{
-    std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
-    std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
-
-    std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
-    std::size_t pos    = nw_cuda_thread_rank();
-
-    rw += nw_cuda_thread_rank();
-    cl -= nw_cuda_thread_rank();
-
-    while (pos < n_vect)
-    {
-        nw::trace* p_sub = &sub[pos];
-
-        int*       p_curr = &curr[pos];
-        int const* p_hv   = &hv[pos];
-        int const* p_diag = &diag[pos];
-
-        nw_cuda_fill_cell(rw, cl, p_sub, p_curr, p_hv, p_diag, ref, src);
-
-        rw += nw_cuda_grid_size();
-        cl -= nw_cuda_grid_size();
-
-        pos += nw_cuda_grid_size();
-    }
-}
-
-__device__ static void nw_cuda_score_cell(std::size_t rw,
-                                          std::size_t cl,
-                                          int*        curr,
-                                          int const*  hv,
-                                          int const*  diag,
-                                          char const* ref,
-                                          char const* src)
-{
-    if (rw == 0)
-    {
-        *curr = cl * nw_cuda_gap;
-        return;
-    }
-
-    if (cl == 0)
-    {
-        *curr = rw * nw_cuda_gap;
-        return;
-    }
-
-    int pair   = (ref[cl - 1] == src[rw - 1]) ? nw_cuda_match : nw_cuda_miss;
-    int insert = nw_cuda_gap;
-    int remove = nw_cuda_gap;
-
-    std::size_t line = (nw_cuda_n_col > nw_cuda_n_row)
-                           ? std::max(nw_cuda_n_row, nw_cuda_n_col)
-                           : std::min(nw_cuda_n_row, nw_cuda_n_col);
-
-    if (rw + cl < line)
-    {
-        pair += *(diag - 1);
-        insert += *(hv - 1);
-        remove += *hv;
-    }
-    else if (rw + cl == line)
-    {
-        pair += *diag;
-        insert += *hv;
-        remove += *(hv + 1);
-    }
-    else
-    {
-        pair += *(diag + 1);
-        insert += *hv;
-        remove += *(hv + 1);
-    }
-
-    *curr = std::max({pair, insert, remove});
-}
-
-__device__ static void nw_cuda_score_ad(std::size_t ad,
-                                        int*        curr,
-                                        int const*  hv,
-                                        int const*  diag,
-                                        char const* ref,
-                                        char const* src)
-{
-    std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
-    std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
-
-    std::size_t n_vect = std::min(nw_cuda_n_row - rw, cl + 1);
-    std::size_t pos    = nw_cuda_thread_rank();
-
-    rw += nw_cuda_thread_rank();
-    cl -= nw_cuda_thread_rank();
-
-    while (pos < n_vect)
-    {
-        nw_cuda_score_cell(rw, cl, &curr[pos], &hv[pos], &diag[pos], ref, src);
-
-        rw += nw_cuda_grid_size();
-        cl -= nw_cuda_grid_size();
-
-        pos += nw_cuda_grid_size();
-    }
-}
-
-__global__ static void nw_cuda_fill(std::size_t from,
-                                    std::size_t to,
-                                    nw::trace*  sub,
-                                    int*        curr,
-                                    int*        hv,
-                                    int*        diag,
-                                    char const* ref,
-                                    char const* src)
-{
-    cg::grid_group grid = cg::this_grid();
-
-    for (std::size_t ad = from; ad < to; ++ad)
-    {
-        cg::sync(grid);
-
-        thrust::swap(diag, hv);
-        thrust::swap(hv, curr);
-
-        nw_cuda_fill_ad(ad, sub, curr, hv, diag, ref, src);
-
-        std::size_t rw = (ad < nw_cuda_n_col) ? 0 : ad - nw_cuda_n_col + 1;
-        std::size_t cl = (ad < nw_cuda_n_col) ? ad : nw_cuda_n_col - 1;
-
-        sub += std::min(nw_cuda_n_row - rw, cl + 1);
-    }
-}
-
-__global__ static void nw_cuda_score(int*        curr,
-                                     int*        hv,
-                                     int*        diag,
-                                     char const* ref,
-                                     char const* src)
-{
-    cg::grid_group grid   = cg::this_grid();
-    std::size_t    n_diag = nw_cuda_n_row + nw_cuda_n_col - 1;
-
-    for (std::size_t ad = 0; ad < n_diag; ++ad)
-    {
-        cg::sync(grid);
-
-        thrust::swap(diag, hv);
-        thrust::swap(hv, curr);
-
-        nw_cuda_score_ad(ad, curr, hv, diag, ref, src);
-    }
-}
-
-/*****************************************************************************/
 /*  PUBLIC METHODS                                                           */
 /*****************************************************************************/
 
 cuda::cuda(int match, int miss, int gap)
 {
-    int dev;
-    cudaGetDevice(&dev);
-
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, dev);
-
-    warp_size            = prop.warpSize;
-    multiprocessor_count = prop.multiProcessorCount;
-
-    max_thread_per_block          = prop.maxThreadsPerBlock;
-    max_thread_per_multiprocessor = prop.maxThreadsPerMultiProcessor;
-
     this->match = match;
     this->miss  = miss;
     this->gap   = gap;
-
-    cudaMemcpyToSymbol(nw_cuda_match, &match, sizeof(int));
-    cudaMemcpyToSymbol(nw_cuda_miss, &miss, sizeof(int));
-    cudaMemcpyToSymbol(nw_cuda_gap, &gap, sizeof(int));
 }
 
 nw::trace& cuda::operator()(std::size_t rw, std::size_t cl)
@@ -362,155 +59,68 @@ nw::trace& cuda::operator()(std::size_t rw, std::size_t cl)
 
 int cuda::fill(std::string const& ref, std::string const& src)
 {
-    std::size_t n_row = src.size() + 1;
-    std::size_t n_col = ref.size() + 1;
+    n_row = src.size() + 1;
+    n_col = ref.size() + 1;
 
-    if (n_row * n_col != this->n_row * this->n_col)
-    {
-        matrix.resize(n_row * n_col);
-        matrix.shrink_to_fit();
-    }
+    matrix.resize(n_row * n_col);
+    matrix.shrink_to_fit();
 
-    this->n_row = n_row;
-    this->n_col = n_col;
+    kernel nw(match, miss, gap);
+    nw.init(ref, src);
 
-    cudaMemcpyToSymbol(nw_cuda_n_row, &n_row, sizeof(std::size_t));
-    cudaMemcpyToSymbol(nw_cuda_n_col, &n_col, sizeof(std::size_t));
-
-    std::size_t n_vect  = std::min(n_row, n_col);
     std::size_t payload = partition_payload();
-
-    auto d_sub = alloc_device_memory<nw::trace>(payload);
-
-    auto d_curr = alloc_device_memory<int>(n_vect);
-    auto d_hv   = alloc_device_memory<int>(n_vect);
-    auto d_diag = alloc_device_memory<int>(n_vect);
-
-    auto d_ref = alloc_device_memory<char>(ref.size(), ref.c_str());
-    auto d_src = alloc_device_memory<char>(src.size(), src.c_str());
-
-    int* p_curr = d_curr.get();
-    int* p_hv   = d_hv.get();
-    int* p_diag = d_diag.get();
-
-    auto swap_vects = [&](std::size_t n_iter)
-    {
-        static constexpr std::size_t vect_count = 3;
-
-        if (n_iter % vect_count == 1)
-        {
-            std::swap(p_diag, p_hv);
-            std::swap(p_hv, p_curr);
-        }
-        else if (n_iter % vect_count == 2)
-        {
-            std::swap(p_curr, p_hv);
-            std::swap(p_hv, p_diag);
-        }
-    };
-
-    char* p_ref = d_ref.get();
-    char* p_src = d_src.get();
-
-    nw::trace* p_sub = d_sub.get();
-
-    std::size_t from;
-    std::size_t to;
-
-    auto [grid, block] = align_dimension(n_vect);
-
-    void* args[] = {&from, &to, &p_sub, &p_curr, &p_hv, &p_diag, &p_ref, &p_src};
-    void* kernel = nw_cuda_fill;
+    nw.allocate_traceback_matrix(payload);
 
     std::size_t n_diag = n_row + n_col - 1;
+    int score = 0;
 
-    for (std::size_t ad = 0; ad < n_diag; ad = to)
+    for (std::size_t ad = 1; ad < n_diag;)
     {
-        from = ad;
-        to   = find_submatrix_end(ad, payload);
+        std::size_t from = ad;
+        std::size_t to   = find_submatrix_end(ad, payload);
 
-        cudaLaunchCooperativeKernel(kernel, grid, block, args);
-        swap_vects(to - from);
+        score = nw.launch(from, to, true);
 
         std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
         std::size_t cl = (ad < n_col) ? ad : n_col - 1;
 
         std::size_t size = find_submatrix_size(from, to);
-        cudaMemcpy(&(*this)(rw, cl), p_sub, size, cudaMemcpyDefault);
-    }
+        nw.transfer(ad, &(*this)(rw, cl), size);
 
-    int score;
-    cudaMemcpy(&score, p_curr, sizeof(int), cudaMemcpyDefault);
+        ad = to;
+    }
 
     return score;
 }
 
 int cuda::score(std::string const& ref, std::string const& src)
 {
-    std::size_t n_row = src.size() + 1;
-    std::size_t n_col = ref.size() + 1;
+    n_row = src.size() + 1;
+    n_col = ref.size() + 1;
 
-    cudaMemcpyToSymbol(nw_cuda_n_row, &n_row, sizeof(std::size_t));
-    cudaMemcpyToSymbol(nw_cuda_n_col, &n_col, sizeof(std::size_t));
+    kernel nw(match, miss, gap);
+    nw.init(ref, src);
 
-    std::size_t n_vect = std::min(n_row, n_col);
+    std::size_t from = 1;
+    std::size_t to = n_row + n_col - 1;
 
-    auto d_curr = alloc_device_memory<int>(n_vect);
-    auto d_hv   = alloc_device_memory<int>(n_vect);
-    auto d_diag = alloc_device_memory<int>(n_vect);
-
-    auto d_ref = alloc_device_memory<char>(ref.size(), ref.c_str());
-    auto d_src = alloc_device_memory<char>(src.size(), src.c_str());
-
-    int* p_curr = d_curr.get();
-    int* p_hv   = d_hv.get();
-    int* p_diag = d_diag.get();
-
-    char* p_ref = d_ref.get();
-    char* p_src = d_src.get();
-
-    void* args[] = {&p_curr, &p_hv, &p_diag, &p_ref, &p_src};
-    void* kernel = nw_cuda_score;
-
-    auto [grid, block] = align_dimension(n_vect);
-
-    cudaLaunchCooperativeKernel(kernel, grid, block, args);
-    cudaDeviceSynchronize();
-
-    int score;
-    cudaMemcpy(&score, d_curr.get(), sizeof(int), cudaMemcpyDefault);
-
-    return score;
+    return nw.launch(from, to, false);
 }
 
 /*****************************************************************************/
 /*  PRIVATE METHODS                                                          */
 /*****************************************************************************/
 
-std::pair<dim3, dim3> cuda::align_dimension(std::size_t n_vect)
+std::size_t cuda::partition_payload()
 {
-    std::size_t n_block = (n_vect % max_thread_per_block) ? 1 : 0;
-    n_block += n_vect / max_thread_per_block;
+    static constexpr std::size_t threshold = 2'000'000;
 
-    if (n_block > multiprocessor_count)
-    {
-        n_block = multiprocessor_count;
-    }
+    std::size_t max_vect = std::min(n_row, n_col);
+    std::size_t capacity = n_row * n_col;
 
-    std::size_t n_thread = (n_vect % n_block) ? 1 : 0;
-    n_thread += n_vect / n_block;
+    std::size_t payload = (capacity < threshold) ? capacity : threshold;
 
-    if (n_thread % warp_size)
-    {
-        n_thread = ((n_thread / warp_size) + 1) * warp_size;
-    }
-
-    if (n_thread > max_thread_per_multiprocessor)
-    {
-        n_thread = max_thread_per_multiprocessor;
-    }
-
-    return std::make_pair(dim3(n_block), dim3(n_thread));
+    return (payload < max_vect) ? max_vect : payload;
 }
 
 std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
@@ -559,16 +169,4 @@ std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
     auto to = &(*this)(rw, cl);
 
     return (std::distance(from, to) + carry) * sizeof(nw::trace);
-}
-
-std::size_t cuda::partition_payload()
-{
-    static constexpr std::size_t threshold = 2'000'000;
-
-    std::size_t max_vect = std::min(n_row, n_col);
-    std::size_t capacity = n_row * n_col;
-
-    std::size_t payload = (capacity < threshold) ? capacity : threshold;
-
-    return (payload < max_vect) ? max_vect : payload;
 }

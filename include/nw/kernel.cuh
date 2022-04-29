@@ -1,0 +1,64 @@
+#ifndef NW_KERNEL_CUH
+#define NW_KERNEL_CUH
+
+/*****************************************************************************/
+/*  HEADER INCLUDES                                                          */
+/*****************************************************************************/
+
+#include "aligner.hpp"
+
+/*****************************************************************************/
+/*  DATA TYPES                                                               */
+/*****************************************************************************/
+
+namespace nw
+{
+    class kernel
+    {
+    public:
+        __host__ kernel(int match, int miss, int gap);
+        __host__ __device__ ~kernel();
+
+        __host__ void init(std::string const& ref, std::string const& src);
+        __host__ void allocate_traceback_matrix(std::size_t payload);
+
+        __host__ int launch(std::size_t from, std::size_t to, bool traceback);
+        __host__ void transfer(std::size_t ad, trace* to, std::size_t size);
+
+        __device__ void score(std::size_t ad, bool traceback);
+
+        __device__ void flush();
+        __device__ void advance(std::size_t ad);
+
+        __device__ void swap_vectors();
+        __device__ void realign_vectors(std::size_t n_iter);
+
+    private:
+        __host__ std::pair<dim3, dim3> align_dimension(std::size_t n_vect);
+
+        __host__ void load(std::string const& ref, std::string const& src);
+        __host__ void allocate_vectors();
+
+        __device__ void copy_vector(int* dst, int const* src);
+        __device__ trace find_trace(int pair, int insert, int remove);
+
+        int match;
+        int miss;
+        int gap;
+
+        std::size_t n_row;
+        std::size_t n_col;
+
+        int* curr;
+        int* hv;
+        int* diag;
+
+        char* ref;
+        char* src;
+
+        trace* submatrix;
+        trace* vect;
+    };
+}
+
+#endif  // NW_KERNEL_CUH
