@@ -26,6 +26,7 @@ namespace nw
 
     private:
         std::size_t partition_payload();
+        std::size_t prior_element_count(std::size_t ad);
 
         std::size_t find_submatrix_end(std::size_t start, std::size_t payload);
         std::size_t find_submatrix_size(std::size_t start, std::size_t end);

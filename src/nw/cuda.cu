@@ -24,37 +24,12 @@ cuda::cuda(int match, int miss, int gap)
 
 nw::trace& cuda::operator()(std::size_t rw, std::size_t cl)
 {
-    std::size_t upper = std::min(n_row, n_col);
-    std::size_t lower = std::max(n_row, n_col);
-
     std::size_t ad = rw + cl;
 
-    std::size_t pos;
-    std::size_t offset;
+    std::size_t top = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t pos = prior_element_count(ad) + (rw - top);
 
-    if (ad < upper)
-    {
-        pos = ad * (ad + 1) / 2;
-        offset = rw;
-    }
-    else if (ad < lower)
-    {
-        pos = upper * (upper + 1) / 2;
-        pos += (ad - upper) * std::min(n_row, n_col);
-
-        offset = (n_row < n_col) ? rw : n_col - cl - 1;
-    }
-    else
-    {
-        std::size_t comp = n_row + n_col - ad - 1;
-
-        pos = n_row * n_col;
-        pos -= comp * (comp + 1) / 2;
-
-        offset = n_col - cl - 1;
-    }
-
-    return matrix[pos + offset];
+    return matrix[pos];
 }
 
 int cuda::fill(std::string const& ref, std::string const& src)
@@ -123,6 +98,26 @@ std::size_t cuda::partition_payload()
     return (payload < max_vect) ? max_vect : payload;
 }
 
+std::size_t cuda::prior_element_count(std::size_t ad)
+{
+    std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t cl = (ad < n_col) ? ad : n_col - 1;
+
+    std::size_t n_vect = std::min(n_row - rw, cl + 1);
+
+    std::size_t top = (ad < n_col) ? 0 : ad - n_col + 1;
+
+    std::size_t start = (ad < n_col) ? ad : n_col - 1;
+    std::size_t end = cl - n_vect + 1;
+
+    std::size_t size = (top * n_col) + rw;
+
+    size += (start * (start + 1) / 2);
+    size -= (end * (end + 1) / 2);
+
+    return size;
+}
+
 std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
 {
     std::size_t n_diag = n_row + n_col - 1;
@@ -146,27 +141,5 @@ std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
 
 std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
 {
-    std::size_t carry = 0;
-
-    std::size_t rw = (start < n_col) ? 0 : start - n_col + 1;
-    std::size_t cl = (start < n_col) ? start : n_col - 1;
-
-    auto from = &(*this)(rw, cl);
-
-    if (end != n_row + n_col - 1)
-    {
-        rw = (end < n_col) ? 0 : end - n_col + 1;
-        cl = (end < n_col) ? end : n_col - 1;
-    }
-    else
-    {
-        rw = n_row - 1;
-        cl = n_col - 1;
-
-        carry = 1;
-    }
-
-    auto to = &(*this)(rw, cl);
-
-    return (std::distance(from, to) + carry) * sizeof(nw::trace);
+    return prior_element_count(end) - prior_element_count(start);
 }
