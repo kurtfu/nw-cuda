@@ -29,17 +29,11 @@ nw::trace& serial::operator()(std::size_t rw, std::size_t cl)
 
 int serial::fill(std::string const& ref, std::string const& src)
 {
-    std::size_t n_row = src.size() + 1;
-    std::size_t n_col = ref.size() + 1;
+    n_row = src.size() + 1;
+    n_col = ref.size() + 1;
 
-    if (n_row * n_col != this->n_row * this->n_col)
-    {
-        matrix.resize(n_row * n_col);
-        matrix.shrink_to_fit();
-    }
-
-    this->n_row = n_row;
-    this->n_col = n_col;
+    matrix.resize(n_row * n_col);
+    matrix.shrink_to_fit();
 
     std::vector<int> prev(n_col);
     std::vector<int> curr(n_col);
@@ -75,8 +69,8 @@ int serial::fill(std::string const& ref, std::string const& src)
 
 int serial::score(std::string const& ref, std::string const& src)
 {
-    std::size_t n_row = src.size() + 1;
-    std::size_t n_col = ref.size() + 1;
+    n_row = src.size() + 1;
+    n_col = ref.size() + 1;
 
     std::vector<int> prev(n_col);
     std::vector<int> curr(n_col);
@@ -89,6 +83,7 @@ int serial::score(std::string const& ref, std::string const& src)
     for (std::size_t rw = 1; rw < n_row; ++rw)
     {
         std::swap(prev, curr);
+
         curr[0] = rw * gap;
 
         for (std::size_t cl = 1; cl < n_col; ++cl)
