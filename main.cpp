@@ -17,43 +17,31 @@
 
 class Profiler
 {
+public:
     using method = int (nw::aligner::*)(std::string const&, std::string const&);
 
-    struct Result
+    Profiler(std::string const& samples, std::string const& log)
+        : input{samples}
+        , output{log}
     {
-        int score;
-        std::chrono::milliseconds duration;
-    };
-
-public:
-    Profiler(std::string const& approach, std::string const& test)
-    {
-        add_creator(approach);
-        add_test(test);
-    }
-
-    void add_input(std::string const& file)
-    {
-        input.open(file);
-
         if (input.fail())
         {
-            throw std::runtime_error("\'" + file + "\' does not exist");
+            throw std::runtime_error("\'" + samples + "\' does not exist");
         }
-    }
-
-    void add_output(std::string const& file)
-    {
-        output.open(file);
 
         if (output.fail())
         {
-            throw std::runtime_error("\'" + file + "\' could not be opened");
+            throw std::runtime_error("\'" + log + "\' could not be opened");
         }
     }
 
-    void profile_samples()
+    void profile_samples(std::string const& type, std::string const& test)
     {
+        validate_arguments(type, test);
+
+        auto approach = approaches[type];
+        auto func = methods[test];
+
         std::string line;
 
         while (std::getline(input, line))
@@ -65,69 +53,48 @@ public:
 
             iss >> src >> ref;
 
-            auto result = measure_sample(ref, src);
+            auto begin = std::chrono::high_resolution_clock::now();
 
-            auto score = result.score;
-            auto duration = result.duration.count();
+            auto nw = nw::creator(approach).create(1, -1, -2);
+            int score = std::invoke(func, *nw, ref, src);
 
-            std::cout << "Exec Time: " << duration << '\n';
-            output << src.size() << ',' << score << ',' << duration << '\n';
+            auto end = std::chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+
+            std::cout << "Exec Time: " << elapsed.count() << '\n';
+            output << src.size() << ',' << score << ',' << elapsed.count() << '\n';
         }
     }
 
 private:
-    void add_creator(std::string const& type)
+    void validate_arguments(std::string const& type, std::string const& test)
     {
-        static std::unordered_map<std::string, nw::approach> approaches = {
-            {"cuda",   nw::approach::cuda  },
-            {"serial", nw::approach::serial},
-        };
-
         if (approaches.find(type) == approaches.end())
         {
-            throw std::runtime_error("\'" + type + "\' is not a valid");
+            throw std::runtime_error("\'" + type + "\' is not a valid approach");
         }
 
-        creator = std::make_unique<nw::creator>(approaches[type]);
-    }
-
-    void add_test(std::string const& type)
-    {
-        static std::unordered_map<std::string, Profiler::method> tests = {
-            {"fill",  &nw::aligner::fill },
-            {"score", &nw::aligner::score}
-        };
-
-        if (tests.find(type) == tests.end())
+        if (methods.find(test) == methods.end())
         {
-            throw std::runtime_error("\'" + type + "\' is not a valid");
+            throw std::runtime_error("\'" + test + "\' is not a valid test");
         }
-
-        test = tests[type];
     }
 
-    Result measure_sample(std::string const& ref, std::string const& src)
-    {
-        constexpr int match = 1;
-        constexpr int miss = -1;
-        constexpr int gap = -2;
-
-        auto begin = std::chrono::high_resolution_clock::now();
-
-        auto nw = creator->create(match, miss, gap);
-        int score = std::invoke(test, *nw, ref, src);
-
-        auto end = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
-
-        return Result{score, elapsed};
-    }
-
-    std::unique_ptr<nw::creator> creator;
-    Profiler::method test;
+    static std::unordered_map<std::string, Profiler::method> methods;
+    static std::unordered_map<std::string, nw::approach> approaches;
 
     std::ifstream input;
     std::ofstream output;
+};
+
+std::unordered_map<std::string, Profiler::method> Profiler::methods = {
+    {"fill",  &nw::aligner::fill },
+    {"score", &nw::aligner::score}
+};
+
+std::unordered_map<std::string, nw::approach> Profiler::approaches = {
+    {"cuda",   nw::approach::cuda  },
+    {"serial", nw::approach::serial},
 };
 
 /*****************************************************************************/
@@ -170,15 +137,12 @@ int main(int argc, char const* argv[])
         auto approach = args["approach"].as<std::string>();
         auto test = args["test"].as<std::string>();
 
-        Profiler profiler(approach, test);
-
         auto samples = args["input"].as<std::string>();
         auto log = args["output"].as<std::string>();
 
-        profiler.add_input(samples);
-        profiler.add_output(log);
+        Profiler profiler(samples, log);
 
-        profiler.profile_samples();
+        profiler.profile_samples(approach, test);
         std::cout << "Testing has been completed!\n";
     }
     catch (std::exception const& ex)
