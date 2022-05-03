@@ -35,7 +35,6 @@ IPATH = ${PROJ_PATH}/include \
 
 # The tag describes the source files of the project.
 SRC  = $(wildcard ${PROJ_PATH}/*.cpp)         \
-       $(wildcard ${PROJ_PATH}/src/cli/*.cpp) \
        $(wildcard ${PROJ_PATH}/src/nw/*.cpp)  \
        $(wildcard ${PROJ_PATH}/src/nw/*.cu)
 
