@@ -8,7 +8,7 @@
 #include <sstream>
 #include <unordered_map>
 
-#include "cli/parser.hpp"
+#include "cxxopts.hpp"
 #include "nw/creator.hpp"
 
 /*****************************************************************************/
@@ -134,23 +134,23 @@ private:
 /*  MODULE FUNCTIONS                                                         */
 /*****************************************************************************/
 
-cli::result parse_program_argumnets(int argc, char const* argv[])
+cxxopts::ParseResult parse_program_argumnets(int argc, char const* argv[])
 {
-    cli::parser parser("nw");
+    cxxopts::Options opts("nw");
 
-    auto type = cli::type<std::string>();
+    auto type = cxxopts::value<std::string>();
 
-    parser.add_option("a,approach", "Specify the approach", type, "APPROACH");
-    parser.add_option("h,help", "Display help");
-    parser.add_option("i,input", "Specify the input samples", type, "FILE");
-    parser.add_option("o,output", "Specify the output file", type, "FILE");
-    parser.add_option("t,test", "Specify the test method", type, "METHOD");
+    opts.add_options()("a,approach", "Specify the approach", type, "APPROACH");
+    opts.add_options()("h,help", "Display help");
+    opts.add_options()("i,input", "Specify the input samples", type, "FILE");
+    opts.add_options()("o,output", "Specify the output file", type, "FILE");
+    opts.add_options()("t,test", "Specify the test method", type, "METHOD");
 
-    auto args = parser.parse(argc, argv);
+    auto args = opts.parse(argc, argv);
 
     if (args.count("help"))
     {
-        std::cout << parser.help() << '\n';
+        std::cout << opts.help() << '\n';
         std::exit(EXIT_SUCCESS);
     }
 
