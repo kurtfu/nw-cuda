@@ -19,6 +19,7 @@ class Profiler
 {
 public:
     using method = int (nw::aligner::*)(nw::input const&, nw::input const&);
+    using scale = std::chrono::milliseconds;
 
     Profiler(std::string const& samples, std::string const& log)
         : input{samples}
@@ -54,10 +55,12 @@ public:
             int score = std::invoke(func, *nw, ref, src);
 
             auto end = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+            auto elapsed = std::chrono::duration_cast<scale>(end - begin);
 
-            std::cout << "Exec Time: " << elapsed.count() << '\n';
-            output << src.length() << ',' << score << ',' << elapsed.count() << '\n';
+            auto exec_time = elapsed.count();
+
+            std::cout << "Exec Time: " << exec_time << '\n';
+            output << src.length() << ',' << score << ',' << exec_time << '\n';
         }
     }
 
