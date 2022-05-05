@@ -87,7 +87,11 @@ __host__ int kernel::launch(std::size_t from, std::size_t to, bool traceback)
     void* kernel = fill;
 
     std::size_t n_vect = n_row;
-    auto [grid, block] = align_dimension(n_vect);
+
+    dim3 grid;
+    dim3 block;
+
+    std::tie(grid, block) = align_dimension(n_vect);
 
     cudaLaunchCooperativeKernel(kernel, grid, block, args);
     cudaDeviceSynchronize();

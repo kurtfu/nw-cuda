@@ -47,7 +47,10 @@ public:
 
         while (std::getline(input, line))
         {
-            auto [ref, src] = parse_input_line(line);
+            auto sequences = parse_input_line(line);
+
+            auto ref = sequences.first;
+            auto src = sequences.second;
 
             auto begin = std::chrono::high_resolution_clock::now();
 
