@@ -103,7 +103,7 @@ __host__ int kernel::launch(std::size_t from, std::size_t to, bool traceback)
     return score;
 }
 
-__host__ void kernel::transfer(std::size_t ad, trace* to, std::size_t size)
+__host__ void kernel::transfer(trace* to, std::size_t size)
 {
     cudaMemcpy(to, submatrix, size, cudaMemcpyDefault);
 }

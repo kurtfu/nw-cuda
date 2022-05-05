@@ -60,7 +60,7 @@ int cuda::fill(nw::input const& ref, nw::input const& src)
         std::size_t cl = (ad < n_col) ? ad : n_col - 1;
 
         std::size_t size = find_submatrix_size(from, to);
-        nw.transfer(ad, &(*this)(rw, cl), size);
+        nw.transfer(&(*this)(rw, cl), size);
 
         ad = to;
     }

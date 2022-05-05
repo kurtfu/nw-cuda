@@ -23,7 +23,7 @@ namespace nw
         __host__ void allocate_traceback_matrix(std::size_t payload);
 
         __host__ int launch(std::size_t from, std::size_t to, bool traceback);
-        __host__ void transfer(std::size_t ad, trace* to, std::size_t size);
+        __host__ void transfer(trace* to, std::size_t size);
 
         __device__ void score(std::size_t ad, bool traceback);
         __device__ void advance(std::size_t ad);
