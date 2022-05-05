@@ -61,7 +61,6 @@ NVCC = nvcc  # CUDA/C++ Compiler
 #------------------------------------------------------------------------------
 
 NVCCFLAGS = $(addprefix -I, ${IPATH}) \
-            -expt-relaxed-constexpr \
             -std=c++17 \
             -O2
 
