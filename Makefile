@@ -79,9 +79,6 @@ clean:
 	@${RMDIR} "${BUILD_PATH}" ||:
 	@echo "Project Cleaned Successfully"
 
-seqgen:
-	@$(MAKE) --no-print-directory -C utils
-
 #------------------------------------------------------------------------------
 # BUILD RULES
 #------------------------------------------------------------------------------
