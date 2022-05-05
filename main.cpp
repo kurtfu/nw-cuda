@@ -18,7 +18,7 @@
 class Profiler
 {
 public:
-    using method = int (nw::aligner::*)(std::string const&, std::string const&);
+    using method = int (nw::aligner::*)(nw::input const&, nw::input const&);
 
     Profiler(std::string const& samples, std::string const& log)
         : input{samples}
@@ -46,12 +46,7 @@ public:
 
         while (std::getline(input, line))
         {
-            std::istringstream iss(line);
-
-            std::string src;
-            std::string ref;
-
-            iss >> src >> ref;
+            auto [ref, src] = parse_input_line(line);
 
             auto begin = std::chrono::high_resolution_clock::now();
 
@@ -62,7 +57,7 @@ public:
             auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
 
             std::cout << "Exec Time: " << elapsed.count() << '\n';
-            output << src.size() << ',' << score << ',' << elapsed.count() << '\n';
+            output << src.length() << ',' << score << ',' << elapsed.count() << '\n';
         }
     }
 
@@ -78,6 +73,18 @@ private:
         {
             throw std::runtime_error("\'" + test + "\' is not a valid test");
         }
+    }
+
+    std::pair<nw::input, nw::input> parse_input_line(std::string const& line)
+    {
+        std::istringstream iss(line);
+
+        std::string src;
+        std::string ref;
+
+        iss >> src >> ref;
+
+        return std::make_pair(nw::input(ref), nw::input(src));
     }
 
     static std::unordered_map<std::string, Profiler::method> methods;

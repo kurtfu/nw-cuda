@@ -5,7 +5,7 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "aligner.hpp"
+#include "nw/aligner.hpp"
 
 /*****************************************************************************/
 /*  DATA TYPES                                                               */
@@ -19,7 +19,7 @@ namespace nw
         __host__ kernel(int match, int miss, int gap);
         __host__ __device__ ~kernel();
 
-        __host__ void init(std::string const& ref, std::string const& src);
+        __host__ void init(nw::input const& ref, nw::input const& src);
         __host__ void allocate_traceback_matrix(std::size_t payload);
 
         __host__ int launch(std::size_t from, std::size_t to, bool traceback);
@@ -36,7 +36,7 @@ namespace nw
     private:
         __host__ std::pair<dim3, dim3> align_dimension(std::size_t n_vect);
 
-        __host__ void load(std::string const& ref, std::string const& src);
+        __host__ void load(nw::input const& ref, nw::input const& src);
         __host__ void allocate_vectors();
 
         __device__ void copy_vector(int* dst, int const* src);

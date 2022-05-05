@@ -1,11 +1,11 @@
-#ifndef NW_SERIAL_HPP
-#define NW_SERIAL_HPP
+#ifndef NW_INPUT_HPP
+#define NW_INPUT_HPP
 
 /*****************************************************************************/
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "nw/aligner.hpp"
+#include <string>
 
 /*****************************************************************************/
 /*  DATA TYPES                                                               */
@@ -13,20 +13,17 @@
 
 namespace nw
 {
-    class serial : public aligner
+    class input
     {
     public:
-        serial(int match, int miss, int gap);
-        ~serial() = default;
+        input(std::string const& sequence);
 
-        trace& operator()(std::size_t rw, std::size_t cl) override;
-
-        int fill(nw::input const& ref, nw::input const& src) override;
-        int score(nw::input const& ref, nw::input const& src) override;
+        char const& operator[](std::size_t) const;
+        std::size_t length() const;
 
     private:
-        trace find_trace(int pair, int insert, int remove);
+        std::string sequence;
     };
 }
 
-#endif  // NW_SERIAL_HPP
+#endif  // NW_INPUT_HPP

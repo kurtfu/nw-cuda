@@ -3,7 +3,9 @@
 /*****************************************************************************/
 
 #include "nw/serial.hpp"
+
 #include <algorithm>
+#include <limits>
 
 /*****************************************************************************/
 /*  USING DECLERATIONS                                                       */
@@ -27,24 +29,20 @@ nw::trace& serial::operator()(std::size_t rw, std::size_t cl)
     return matrix[rw * n_col + cl];
 }
 
-int serial::fill(std::string const& ref, std::string const& src)
+int serial::fill(nw::input const& ref, nw::input const& src)
 {
-    n_row = src.size() + 1;
-    n_col = ref.size() + 1;
+    n_row = src.length();
+    n_col = ref.length();
 
     matrix.resize(n_row * n_col);
     matrix.shrink_to_fit();
 
-    std::vector<int> prev(n_col);
-    std::vector<int> curr(n_col);
+    int val = std::numeric_limits<int>::min() - std::min({match, miss, gap});
 
-    for (std::size_t cl = 0; cl < n_col; ++cl)
-    {
-        curr[cl] = cl * gap;
-        (*this)(0, cl) = nw::trace::remove;
-    }
+    std::vector<int> prev(n_col, val);
+    std::vector<int> curr(n_col, val);
 
-    for (std::size_t rw = 1; rw < n_row; ++rw)
+    for (std::size_t rw = 0; rw < n_row; ++rw)
     {
         std::swap(prev, curr);
 
@@ -53,9 +51,7 @@ int serial::fill(std::string const& ref, std::string const& src)
 
         for (std::size_t cl = 1; cl < n_col; ++cl)
         {
-            int sig = (ref[cl - 1] == src[rw - 1]) ? match : miss;
-
-            int pair = prev[cl - 1] + sig;
+            int pair = prev[cl - 1] + ((ref[cl] == src[rw]) ? match : miss);
             int insert = prev[cl] + gap;
             int remove = curr[cl - 1] + gap;
 
@@ -67,20 +63,17 @@ int serial::fill(std::string const& ref, std::string const& src)
     return curr[n_col - 1];
 }
 
-int serial::score(std::string const& ref, std::string const& src)
+int serial::score(nw::input const& ref, nw::input const& src)
 {
-    n_row = src.size() + 1;
-    n_col = ref.size() + 1;
+    n_row = src.length();
+    n_col = ref.length();
 
-    std::vector<int> prev(n_col);
-    std::vector<int> curr(n_col);
+    int val = std::numeric_limits<int>::min() - std::min({match, miss, gap});
 
-    for (std::size_t cl = 0; cl < n_col; ++cl)
-    {
-        curr[cl] = cl * gap;
-    }
+    std::vector<int> prev(n_col, val);
+    std::vector<int> curr(n_col, val);
 
-    for (std::size_t rw = 1; rw < n_row; ++rw)
+    for (std::size_t rw = 0; rw < n_row; ++rw)
     {
         std::swap(prev, curr);
 
@@ -88,9 +81,7 @@ int serial::score(std::string const& ref, std::string const& src)
 
         for (std::size_t cl = 1; cl < n_col; ++cl)
         {
-            int sig = (ref[cl - 1] == src[rw - 1]) ? match : miss;
-
-            int pair = prev[cl - 1] + sig;
+            int pair = prev[cl - 1] + ((ref[cl] == src[rw]) ? match : miss);
             int insert = prev[cl] + gap;
             int remove = curr[cl - 1] + gap;
 

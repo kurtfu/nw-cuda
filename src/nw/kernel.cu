@@ -68,10 +68,10 @@ __host__ __device__ kernel::~kernel()
     cudaFree(curr);
 }
 
-__host__ void kernel::init(std::string const& ref, std::string const& src)
+__host__ void kernel::init(nw::input const& ref, nw::input const& src)
 {
-    n_row = src.size() + 1;
-    n_col = ref.size() + 1;
+    n_row = src.length();
+    n_col = ref.length();
 
     load(ref, src);
     allocate_vectors();
@@ -211,13 +211,13 @@ __host__ std::pair<dim3, dim3> kernel::align_dimension(std::size_t n_vect)
     return std::make_pair(dim3(n_block), dim3(n_thread));
 }
 
-__host__ void kernel::load(std::string const& ref, std::string const& src)
+__host__ void kernel::load(nw::input const& ref, nw::input const& src)
 {
-    cudaMalloc(&this->ref, ref.size() + 1);
-    cudaMemcpy(&this->ref[1], ref.c_str(), ref.size(), cudaMemcpyDefault);
+    cudaMalloc(&this->ref, ref.length());
+    cudaMemcpy(this->ref, &ref[0], ref.length(), cudaMemcpyDefault);
 
-    cudaMalloc(&this->src, src.size() + 1);
-    cudaMemcpy(&this->src[1], src.c_str(), src.size(), cudaMemcpyDefault);
+    cudaMalloc(&this->src, src.length());
+    cudaMemcpy(this->src, &src[0], src.length(), cudaMemcpyDefault);
 }
 
 __host__ void kernel::allocate_vectors()

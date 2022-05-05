@@ -21,8 +21,8 @@ namespace nw
 
         trace& operator()(std::size_t rw, std::size_t cl) override;
 
-        int fill(std::string const& ref, std::string const& src) override;
-        int score(std::string const& ref, std::string const& src) override;
+        int fill(nw::input const& ref, nw::input const& src) override;
+        int score(nw::input const& ref, nw::input const& src) override;
 
     private:
         std::size_t partition_payload();

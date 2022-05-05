@@ -5,7 +5,7 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include <string>
+#include "nw/input.hpp"
 #include <vector>
 
 /*****************************************************************************/
@@ -28,8 +28,8 @@ namespace nw
 
         virtual trace& operator()(std::size_t rw, std::size_t cl) = 0;
 
-        virtual int fill(std::string const& ref, std::string const& src) = 0;
-        virtual int score(std::string const& ref, std::string const& src) = 0;
+        virtual int fill(nw::input const& ref, nw::input const& src) = 0;
+        virtual int score(nw::input const& ref, nw::input const& src) = 0;
 
     protected:
         int match;

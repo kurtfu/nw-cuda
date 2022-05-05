@@ -32,10 +32,10 @@ nw::trace& cuda::operator()(std::size_t rw, std::size_t cl)
     return matrix[pos];
 }
 
-int cuda::fill(std::string const& ref, std::string const& src)
+int cuda::fill(nw::input const& ref, nw::input const& src)
 {
-    n_row = src.size() + 1;
-    n_col = ref.size() + 1;
+    n_row = src.length();
+    n_col = ref.length();
 
     matrix.resize(n_row * n_col);
     matrix.shrink_to_fit();
@@ -68,10 +68,10 @@ int cuda::fill(std::string const& ref, std::string const& src)
     return score;
 }
 
-int cuda::score(std::string const& ref, std::string const& src)
+int cuda::score(nw::input const& ref, nw::input const& src)
 {
-    n_row = src.size() + 1;
-    n_col = ref.size() + 1;
+    n_row = src.length();
+    n_col = ref.length();
 
     kernel nw(match, miss, gap);
     nw.init(ref, src);
