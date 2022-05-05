@@ -4,11 +4,12 @@
 
 #include "nw/kernel.cuh"
 
-#include <algorithm>
 #include <limits>
 #include <vector>
 
 #include <cooperative_groups.h>
+
+#include <thrust/functional.h>
 #include <thrust/swap.h>
 
 /*****************************************************************************/
@@ -111,11 +112,14 @@ __device__ void kernel::score(std::size_t ad, bool traceback)
 {
     cg::grid_group grid = cg::this_grid();
 
+    thrust::minimum<std::size_t> min;
+    thrust::maximum<int> max;
+
     std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
     std::size_t cl = (ad < n_col) ? ad : n_col - 1;
 
     std::size_t pos = grid.thread_rank() + rw + 1;
-    std::size_t end = std::min(n_row - rw, cl + 1) + rw + 1;
+    std::size_t end = min(n_row - rw, cl + 1) + rw + 1;
 
     std::size_t iter = grid.thread_rank();
 
@@ -128,7 +132,7 @@ __device__ void kernel::score(std::size_t ad, bool traceback)
         int insert = hv[pos - 1] + gap;
         int remove = hv[pos] + gap;
 
-        curr[pos] = std::max({pair, insert, remove});
+        curr[pos] = max(pair, max(insert, remove));
 
         if (traceback)
         {
@@ -140,10 +144,12 @@ __device__ void kernel::score(std::size_t ad, bool traceback)
 
 __device__ void kernel::advance(std::size_t ad)
 {
+    thrust::minimum<std::size_t> min;
+
     std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
     std::size_t cl = (ad < n_col) ? ad : n_col - 1;
 
-    submatrix += std::min(n_row - rw, cl + 1);
+    submatrix += min(n_row - rw, cl + 1);
 }
 
 __device__ void kernel::swap_vectors()
