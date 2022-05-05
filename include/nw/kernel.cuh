@@ -26,8 +26,6 @@ namespace nw
         __host__ void transfer(std::size_t ad, trace* to, std::size_t size);
 
         __device__ void score(std::size_t ad, bool traceback);
-
-        __device__ void flush();
         __device__ void advance(std::size_t ad);
 
         __device__ void swap_vectors();
@@ -57,7 +55,6 @@ namespace nw
         char* src;
 
         trace* submatrix;
-        trace* vect;
     };
 }
 

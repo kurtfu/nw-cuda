@@ -31,8 +31,6 @@ namespace
 {
     __global__ void fill(kernel nw, std::size_t from, std::size_t to, bool tb)
     {
-        nw.flush();
-
         for (std::size_t ad = from; ad < to; ++ad)
         {
             nw.swap_vectors();
@@ -130,15 +128,10 @@ __device__ void kernel::score(std::size_t ad, bool traceback)
 
         if (traceback)
         {
-            vect[iter] = find_trace(pair, insert, remove);
+            submatrix[iter] = find_trace(pair, insert, remove);
             iter += grid.size();
         }
     }
-}
-
-__device__ void kernel::flush()
-{
-    vect = submatrix;
 }
 
 __device__ void kernel::advance(std::size_t ad)
@@ -146,7 +139,7 @@ __device__ void kernel::advance(std::size_t ad)
     std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
     std::size_t cl = (ad < n_col) ? ad : n_col - 1;
 
-    vect += std::min(n_row - rw, cl + 1);
+    submatrix += std::min(n_row - rw, cl + 1);
 }
 
 __device__ void kernel::swap_vectors()
