@@ -30,12 +30,13 @@ endif
 #------------------------------------------------------------------------------
 
 # The tag describes the search path for header files of the project.
-IPATH = ${PROJ_PATH}/include
+IPATH = ${PROJ_PATH}/include \
+        ${PROJ_PATH}/vendor/cxxopts/include
 
 # The tag describes the source files of the project.
-SRC  = $(wildcard ${PROJ_PATH}/*.cpp)     \
-       $(wildcard ${PROJ_PATH}/src/*.cpp) \
-       $(wildcard ${PROJ_PATH}/src/*.cu)
+SRC  = $(wildcard ${PROJ_PATH}/*.cpp)         \
+       $(wildcard ${PROJ_PATH}/src/nw/*.cpp)  \
+       $(wildcard ${PROJ_PATH}/src/nw/*.cu)
 
 # The tag describes the object files of the project.
 OBJ  = $(patsubst ${PROJ_PATH}/%.cpp,${BUILD_PATH}/%.o, ${SRC})
@@ -60,7 +61,6 @@ NVCC = nvcc  # CUDA/C++ Compiler
 #------------------------------------------------------------------------------
 
 NVCCFLAGS = $(addprefix -I, ${IPATH}) \
-            -expt-relaxed-constexpr \
             -std=c++17 \
             -O2
 
@@ -77,9 +77,6 @@ clean:
 	@${RMDIR} "${BIN_PATH}" ||:
 	@${RMDIR} "${BUILD_PATH}" ||:
 	@echo "Project Cleaned Successfully"
-
-seqgen:
-	@$(MAKE) --no-print-directory -C utils
 
 #------------------------------------------------------------------------------
 # BUILD RULES
