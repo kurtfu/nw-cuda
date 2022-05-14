@@ -32,12 +32,16 @@ namespace
 {
     __global__ void fill(kernel nw, std::size_t from, std::size_t to, bool tb)
     {
+        cg::grid_group grid = cg::this_grid();
+
         for (std::size_t ad = from; ad < to; ++ad)
         {
             nw.swap_vectors();
 
             nw.score(ad, tb);
             nw.advance(ad);
+
+            grid.sync();
         }
 
         std::size_t n_iter = to - from;
@@ -110,23 +114,21 @@ __host__ void kernel::transfer(trace* to, std::size_t size)
 
 __device__ void kernel::score(std::size_t ad, bool traceback)
 {
-    cg::grid_group grid = cg::this_grid();
-
     thrust::minimum<std::size_t> min;
     thrust::maximum<int> max;
 
     std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
     std::size_t cl = (ad < n_col) ? ad : n_col - 1;
 
-    std::size_t pos = grid.thread_rank() + rw + 1;
+    std::size_t pos = thread_rank() + rw + 1;
     std::size_t end = min(n_row - rw, cl + 1) + rw + 1;
 
-    std::size_t iter = grid.thread_rank();
+    std::size_t iter = thread_rank();
 
-    for (; pos < end; pos += grid.size())
+    for (; pos < end; pos += grid_size())
     {
-        rw += grid.thread_rank();
-        cl -= grid.thread_rank();
+        rw += thread_rank();
+        cl -= thread_rank();
 
         int pair = diag[pos - 1] + ((ref[cl] == src[rw]) ? match : miss);
         int insert = hv[pos - 1] + gap;
@@ -137,7 +139,7 @@ __device__ void kernel::score(std::size_t ad, bool traceback)
         if (traceback)
         {
             submatrix[iter] = find_trace(pair, insert, remove);
-            iter += grid.size();
+            iter += grid_size();
         }
     }
 }
@@ -154,10 +156,6 @@ __device__ void kernel::advance(std::size_t ad)
 
 __device__ void kernel::swap_vectors()
 {
-    cg::grid_group grid = cg::this_grid();
-
-    cg::sync(grid);
-
     thrust::swap(diag, hv);
     thrust::swap(hv, curr);
 }
@@ -243,17 +241,13 @@ __host__ void kernel::allocate_vectors()
 
 __device__ void kernel::copy_vector(int* dst, int const* src)
 {
-    cg::grid_group grid = cg::this_grid();
-
-    std::size_t pos = grid.thread_rank();
+    std::size_t pos = thread_rank();
     std::size_t end = n_row + 1;
-
-    grid.sync();
 
     while (pos < end)
     {
         dst[pos] = src[pos];
-        pos += grid.size();
+        pos += grid_size();
     }
 }
 
@@ -267,4 +261,17 @@ __device__ nw::trace kernel::find_trace(int pair, int insert, int remove)
     {
         return (insert > remove) ? nw::trace::insert : nw::trace::remove;
     }
+}
+
+__device__ std::size_t kernel::thread_rank() const
+{
+    std::size_t thread_id = (threadIdx.y * blockDim.x) + threadIdx.x;
+    std::size_t block_id = (blockIdx.y * gridDim.x) + blockIdx.x;
+
+    return (block_id * (blockDim.x * blockDim.y)) + thread_id;
+}
+
+__device__ std::size_t kernel::grid_size() const
+{
+    return (blockDim.y * gridDim.y) * (blockDim.x * gridDim.x);
 }
