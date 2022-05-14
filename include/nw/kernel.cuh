@@ -40,6 +40,9 @@ namespace nw
         __device__ void copy_vector(int* dst, int const* src);
         __device__ trace find_trace(int pair, int insert, int remove);
 
+        __device__ std::size_t thread_rank() const;
+        __device__ std::size_t grid_size() const;
+
         int match;
         int miss;
         int gap;
