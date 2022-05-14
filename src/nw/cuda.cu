@@ -47,6 +47,8 @@ int cuda::fill(nw::input const& ref, nw::input const& src)
     nw.allocate_traceback_matrix(payload);
 
     std::size_t n_diag = n_row + n_col - 1;
+    std::size_t pos = 1;
+
     int score = 0;
 
     for (std::size_t ad = 1; ad < n_diag;)
@@ -56,12 +58,10 @@ int cuda::fill(nw::input const& ref, nw::input const& src)
 
         score = nw.launch(from, to, true);
 
-        std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
-        std::size_t cl = (ad < n_col) ? ad : n_col - 1;
-
         std::size_t size = find_submatrix_size(from, to);
-        nw.transfer(&(*this)(rw, cl), size);
+        nw.transfer(&matrix[pos], size);
 
+        pos += size;
         ad = to;
     }
 
@@ -105,15 +105,13 @@ std::size_t cuda::prior_element_count(std::size_t ad)
 
     std::size_t n_vect = std::min(n_row - rw, cl + 1);
 
-    std::size_t top = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t start = cl;
+    std::size_t end = start - n_vect + 1;
 
-    std::size_t start = (ad < n_col) ? ad : n_col - 1;
-    std::size_t end = cl - n_vect + 1;
-
-    std::size_t size = (top * n_col) + rw;
+    std::size_t size = rw * n_col;
 
     size += (start * (start + 1) / 2);
-    size -= (end * (end + 1) / 2);
+    size -= (end * (end - 1) / 2);
 
     return size;
 }
