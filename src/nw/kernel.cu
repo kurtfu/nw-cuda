@@ -43,9 +43,6 @@ namespace
 
             grid.sync();
         }
-
-        std::size_t n_iter = to - from;
-        nw.realign_vectors(n_iter);
     }
 }
 
@@ -160,22 +157,6 @@ __device__ void kernel::swap_vectors()
     thrust::swap(hv, curr);
 }
 
-__device__ void kernel::realign_vectors(std::size_t n_iter)
-{
-    constexpr std::size_t device_vect_count = 3;
-
-    if ((n_iter % device_vect_count) == 1)
-    {
-        copy_vector(diag, hv);
-        copy_vector(hv, curr);
-    }
-    else if ((n_iter % device_vect_count) == 2)
-    {
-        copy_vector(diag, curr);
-        copy_vector(curr, hv);
-    }
-}
-
 /*****************************************************************************/
 /*  PRIVATE METHODS                                                          */
 /*****************************************************************************/
@@ -239,15 +220,19 @@ __host__ void kernel::allocate_vectors()
     cudaMemset(&curr[1], 0, sizeof(int));
 }
 
-__device__ void kernel::copy_vector(int* dst, int const* src)
+__host__ void kernel::realign_vectors(std::size_t n_iter)
 {
-    std::size_t pos = thread_rank();
-    std::size_t end = n_row + 1;
+    constexpr std::size_t device_vect_count = 3;
 
-    while (pos < end)
+    if ((n_iter % device_vect_count) == 1)
     {
-        dst[pos] = src[pos];
-        pos += grid_size();
+        std::swap(diag, hv);
+        std::swap(hv, curr);
+    }
+    else if ((n_iter % device_vect_count) == 2)
+    {
+        std::swap(diag, curr);
+        std::swap(curr, hv);
     }
 }
 
