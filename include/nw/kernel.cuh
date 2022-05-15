@@ -27,17 +27,15 @@ namespace nw
 
         __device__ void score(std::size_t ad, bool traceback);
         __device__ void advance(std::size_t ad);
-
         __device__ void swap_vectors();
-        __device__ void realign_vectors(std::size_t n_iter);
 
     private:
         __host__ std::pair<dim3, dim3> align_dimension(std::size_t n_vect);
 
         __host__ void load(nw::input const& ref, nw::input const& src);
         __host__ void allocate_vectors();
+        __host__ void realign_vectors(std::size_t n_iter);
 
-        __device__ void copy_vector(int* dst, int const* src);
         __device__ trace find_trace(int pair, int insert, int remove);
 
         __device__ std::size_t thread_rank() const;
