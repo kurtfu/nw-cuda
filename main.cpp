@@ -36,13 +36,8 @@ public:
         }
     }
 
-    void profile_samples(std::string const& type, std::string const& test)
+    void profile_samples(nw::approach approach, Profiler::method func)
     {
-        validate_arguments(type, test);
-
-        auto approach = approaches[type];
-        auto func = methods[test];
-
         std::string line;
 
         while (std::getline(input, line))
@@ -68,19 +63,6 @@ public:
     }
 
 private:
-    void validate_arguments(std::string const& type, std::string const& test)
-    {
-        if (approaches.find(type) == approaches.end())
-        {
-            throw std::runtime_error("\'" + type + "\' is not a valid approach");
-        }
-
-        if (methods.find(test) == methods.end())
-        {
-            throw std::runtime_error("\'" + test + "\' is not a valid test");
-        }
-    }
-
     std::pair<nw::input, nw::input> parse_input_line(std::string const& line)
     {
         std::istringstream iss(line);
@@ -93,21 +75,8 @@ private:
         return std::make_pair(nw::input(ref), nw::input(src));
     }
 
-    static std::unordered_map<std::string, Profiler::method> methods;
-    static std::unordered_map<std::string, nw::approach> approaches;
-
     std::ifstream input;
     std::ofstream output;
-};
-
-std::unordered_map<std::string, Profiler::method> Profiler::methods = {
-    {"fill",  &nw::aligner::fill },
-    {"score", &nw::aligner::score}
-};
-
-std::unordered_map<std::string, nw::approach> Profiler::approaches = {
-    {"cuda",   nw::approach::cuda  },
-    {"serial", nw::approach::serial},
 };
 
 /*****************************************************************************/
@@ -137,6 +106,42 @@ cxxopts::ParseResult parse_program_argumnets(int argc, char const* argv[])
     return args;
 }
 
+template <>
+nw::approach const& cxxopts::OptionValue::as<nw::approach>() const
+{
+    static std::unordered_map<std::string, nw::approach> opts = {
+        {"serial", nw::approach::serial},
+        {"cuda",   nw::approach::cuda  },
+    };
+
+    auto arg = this->as<std::string>();
+
+    if (opts.find(arg) == opts.end())
+    {
+        throw std::runtime_error("\'" + arg + "\' is not a valid approach");
+    }
+
+    return opts[arg];
+}
+
+template <>
+Profiler::method const& cxxopts::OptionValue::as<Profiler::method>() const
+{
+    static std::unordered_map<std::string, Profiler::method> opts = {
+        {"fill",  &nw::aligner::fill },
+        {"score", &nw::aligner::score},
+    };
+
+    auto arg = this->as<std::string>();
+
+    if (opts.find(arg) == opts.end())
+    {
+        throw std::runtime_error("\'" + arg + "\' is not a valid approach");
+    }
+
+    return opts[arg];
+}
+
 /*****************************************************************************/
 /*  MAIN APPLICATION                                                         */
 /*****************************************************************************/
@@ -147,8 +152,8 @@ int main(int argc, char const* argv[])
     {
         auto args = parse_program_argumnets(argc, argv);
 
-        auto approach = args["approach"].as<std::string>();
-        auto test = args["test"].as<std::string>();
+        auto approach = args["approach"].as<nw::approach>();
+        auto test = args["test"].as<Profiler::method>();
 
         auto samples = args["input"].as<std::string>();
         auto log = args["output"].as<std::string>();
