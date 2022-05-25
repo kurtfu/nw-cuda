@@ -36,18 +36,36 @@ IPATH = ${PROJ_PATH}/include \
 # The tag describes the source files of the project.
 SRC  = $(wildcard ${PROJ_PATH}/*.cpp)         \
        $(wildcard ${PROJ_PATH}/src/nw/*.cpp)  \
-       $(wildcard ${PROJ_PATH}/src/nw/*.cu)
+       $(wildcard ${PROJ_PATH}/src/nw/*.cu)   \
+       $(wildcard ${PROJ_PATH}/test/catch2/*.cpp) \
+       $(wildcard ${PROJ_PATH}/test/*.cpp)
 
 # The tag describes the object files of the project.
-OBJ  = $(patsubst ${PROJ_PATH}/%.cpp,${BUILD_PATH}/%.o, ${SRC})
-OBJ := $(patsubst ${PROJ_PATH}/%.cu,${BUILD_PATH}/%.o, ${OBJ})
+OBJ  = $(patsubst ${PROJ_PATH}/%.cpp,${BUILD_PATH}/%, ${SRC})
+OBJ := $(patsubst ${PROJ_PATH}/%.cu,${BUILD_PATH}/%, ${OBJ})
+
+# The tag describes the dependency files of the sources.
+DEP  = $(patsubst ${PROJ_PATH}/%.cpp,${BUILD_PATH}/%.d, ${SRC})
+DEP := $(patsubst ${PROJ_PATH}/%.cu,${BUILD_PATH}/%.d, ${DEP})
 
 # The tag describes the output file of the project.
 OUT  = $(addprefix ${BIN_PATH}/, ${PROJ})
 
-# Convert object suffix to MSVC style if the host is Windows.
+# The tag describes the test executable of the project.
+TEST = $(addprefix ${BIN_PATH}/, ${PROJ}-test)
+
+#------------------------------------------------------------------------------
+# EXTENSION ALIGNMENTS
+#------------------------------------------------------------------------------
+
 ifeq (${OS}, Windows_NT)
-    OBJ := $(OBJ:.o=.obj)
+    OBJ  := $(addsuffix .obj,${OBJ})
+    OUT  := $(addsuffix .exe,${OUT})
+    TEST := $(addsuffix .exe,${TEST})
+else
+    OBJ  := $(addsuffix .o,${OBJ})
+    OUT  := $(addsuffix .out,${OUT})
+    TEST := $(addsuffix .out,${TEST})
 endif
 
 #------------------------------------------------------------------------------
@@ -62,21 +80,30 @@ NVCC = nvcc  # CUDA/C++ Compiler
 
 NVCCFLAGS = $(addprefix -I, ${IPATH}) \
             -std=c++17 \
+            -MD \
             -O2
 
 #------------------------------------------------------------------------------
 # MAKE RULES
 #------------------------------------------------------------------------------
 
-.PHONY: all clean seqgen
-
+all: OBJ := $(filter-out ${BUILD_PATH}/test/%.obj,${OBJ})
+all: OBJ := $(filter-out ${BUILD_PATH}/test/%.o,${OBJ})
 all: ${OUT}
 	@echo "Project Build Successfully"
+.PHONY: all
 
 clean:
 	@${RMDIR} "${BIN_PATH}" ||:
 	@${RMDIR} "${BUILD_PATH}" ||:
 	@echo "Project Cleaned Successfully"
+.PHONY: clean
+
+test: OBJ := $(filter-out ${BUILD_PATH}/main.obj,${OBJ})
+test: OBJ := $(filter-out ${BUILD_PATH}/main.o,${OBJ})
+test: ${TEST}
+	@"${TEST}" ||:
+.PHONY: test
 
 #------------------------------------------------------------------------------
 # BUILD RULES
@@ -86,18 +113,24 @@ ${OUT}: ${OBJ}
 	@${MKDIR} "$(dir $@)" ||:
 	${NVCC} -o $@ ${OBJ}
 
+${TEST}: ${OBJ}
+	@${MKDIR} "$(dir $@)" ||:
+	${NVCC} -o $@ ${OBJ}
+
 ${BUILD_PATH}/%.o: ${PROJ_PATH}/%.cpp
 	@${MKDIR} "$(dir $@)" ||:
-	${NVCC} -c $< -o $@ ${NVCCFLAGS}
+	${NVCC} ${NVCCFLAGS} -c $< -o $@
 
 ${BUILD_PATH}/%.o: ${PROJ_PATH}/%.cu
 	@${MKDIR} "$(dir $@)" ||:
-	${NVCC} -c $< -o $@ ${NVCCFLAGS}
+	${NVCC} ${NVCCFLAGS} -c $< -o $@
 
 ${BUILD_PATH}/%.obj: ${PROJ_PATH}/%.cpp
 	@${MKDIR} "$(dir $@)" ||:
-	${NVCC} -c $< -o $@ ${NVCCFLAGS}
+	${NVCC} ${NVCCFLAGS} -c $< -o $@
 
 ${BUILD_PATH}/%.obj: ${PROJ_PATH}/%.cu
 	@${MKDIR} "$(dir $@)" ||:
-	${NVCC} -c $< -o $@ ${NVCCFLAGS}
+	${NVCC} ${NVCCFLAGS} -c $< -o $@
+
+-include ${DEP}
