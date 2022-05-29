@@ -37,7 +37,8 @@ IPATH = ${PROJ_PATH}/include \
 SRC  = $(wildcard ${PROJ_PATH}/*.cpp)         \
        $(wildcard ${PROJ_PATH}/src/nw/*.cpp)  \
        $(wildcard ${PROJ_PATH}/src/nw/*.cu)   \
-       $(wildcard ${PROJ_PATH}/test/catch2/*.cpp) \
+       $(wildcard ${PROJ_PATH}/src/profiler/*.cpp) \
+       $(wildcard ${PROJ_PATH}/test/catch2/*.cpp)  \
        $(wildcard ${PROJ_PATH}/test/*.cpp)
 
 # The tag describes the object files of the project.
