@@ -31,32 +31,32 @@ TEST_CASE("Serial score - 3")
     REQUIRE(nw.score(ref, src) == -6);
 }
 
-TEST_CASE("Serial fill - 1")
+TEST_CASE("Serial align - 1")
 {
     std::string ref = "tuvfe";
     std::string src = "kuvaf";
 
     nw::serial nw(1, -1, -2);
 
-    REQUIRE(nw.fill(ref, src) == -1);
+    REQUIRE(nw.align(ref, src) == "!**!!");
 }
 
-TEST_CASE("Serial fill - 2")
+TEST_CASE("Serial align - 2")
 {
     std::string ref = "gattaca";
     std::string src = "gtcgacgca";
 
     nw::serial nw(1, -1, -2);
 
-    REQUIRE(nw.fill(ref, src) == -3);
+    REQUIRE(nw.align(ref, src) == "*!!!**--*");
 }
 
-TEST_CASE("Serial fill - 3")
+TEST_CASE("Serial align - 3")
 {
     std::string ref = "similarity";
     std::string src = "pillar";
 
     nw::serial nw(1, -1, -2);
 
-    REQUIRE(nw.fill(ref, src) == -6);
+    REQUIRE(nw.align(ref, src) == "!*!-***---");
 }

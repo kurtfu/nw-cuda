@@ -31,32 +31,32 @@ TEST_CASE("CUDA score - 3")
     REQUIRE(nw.score(ref, src) == -6);
 }
 
-TEST_CASE("CUDA fill - 1")
+TEST_CASE("CUDA align - 1")
 {
     std::string ref = "tuvfe";
     std::string src = "kuvaf";
 
     nw::cuda nw(1, -1, -2);
 
-    REQUIRE(nw.fill(ref, src) == -1);
+    REQUIRE(nw.align(ref, src) == "!**!!");
 }
 
-TEST_CASE("CUDA fill - 2")
+TEST_CASE("CUDA align - 2")
 {
     std::string ref = "gattaca";
     std::string src = "gtcgacgca";
 
     nw::cuda nw(1, -1, -2);
 
-    REQUIRE(nw.fill(ref, src) == -3);
+    REQUIRE(nw.align(ref, src) == "*!!!**--*");
 }
 
-TEST_CASE("CUDA fill - 3")
+TEST_CASE("CUDA align - 3")
 {
     std::string ref = "similarity";
     std::string src = "pillar";
 
     nw::cuda nw(1, -1, -2);
 
-    REQUIRE(nw.fill(ref, src) == -6);
+    REQUIRE(nw.align(ref, src) == "!*!-***---");
 }
