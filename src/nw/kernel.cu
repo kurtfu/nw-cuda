@@ -83,7 +83,7 @@ __host__ void kernel::allocate_traceback_matrix(std::size_t payload)
     cudaMalloc(&submatrix, payload * sizeof(trace));
 }
 
-__host__ int kernel::launch(std::size_t from, std::size_t to, bool traceback)
+__host__ void kernel::launch(std::size_t from, std::size_t to, bool traceback)
 {
     void* args[] = {this, &from, &to, &traceback};
     void* kernel = fill;
@@ -96,12 +96,9 @@ __host__ int kernel::launch(std::size_t from, std::size_t to, bool traceback)
     std::tie(grid, block) = align_dimension(n_vect);
 
     cudaLaunchCooperativeKernel(kernel, grid, block, args);
-    cudaDeviceSynchronize();
 
-    int score;
-    cudaMemcpy(&score, &curr[n_vect], sizeof(int), cudaMemcpyDefault);
-
-    return score;
+    std::size_t n_iter = to - from;
+    realign_vectors(n_iter);
 }
 
 __host__ void kernel::transfer(trace* to, std::size_t size)
@@ -139,6 +136,14 @@ __device__ void kernel::score(std::size_t ad, bool traceback)
             iter += grid_size();
         }
     }
+}
+
+__host__ int kernel::read_similarity_score() const
+{
+    int score;
+    cudaMemcpy(&score, &curr[n_row], sizeof(int), cudaMemcpyDefault);
+
+    return score;
 }
 
 __device__ void kernel::advance(std::size_t ad)

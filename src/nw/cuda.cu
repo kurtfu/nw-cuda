@@ -49,14 +49,12 @@ int cuda::fill(nw::input const& ref, nw::input const& src)
     std::size_t n_diag = n_row + n_col - 1;
     std::size_t pos = 1;
 
-    int score = 0;
-
     for (std::size_t ad = 1; ad < n_diag;)
     {
         std::size_t from = ad;
         std::size_t to = find_submatrix_end(ad, payload);
 
-        score = nw.launch(from, to, true);
+        nw.launch(from, to, true);
 
         std::size_t size = find_submatrix_size(from, to);
         nw.transfer(&matrix[pos], size);
@@ -65,7 +63,7 @@ int cuda::fill(nw::input const& ref, nw::input const& src)
         ad = to;
     }
 
-    return score;
+    return nw.read_similarity_score();
 }
 
 int cuda::score(nw::input const& ref, nw::input const& src)
@@ -79,7 +77,9 @@ int cuda::score(nw::input const& ref, nw::input const& src)
     std::size_t from = 1;
     std::size_t to = n_row + n_col - 1;
 
-    return nw.launch(from, to, false);
+    nw.launch(from, to, false);
+
+    return nw.read_similarity_score();
 }
 
 /*****************************************************************************/
