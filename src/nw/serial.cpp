@@ -24,12 +24,7 @@ serial::serial(int match, int miss, int gap)
     this->gap = gap;
 }
 
-nw::trace& serial::operator()(std::size_t rw, std::size_t cl)
-{
-    return matrix[rw * n_col + cl];
-}
-
-int serial::fill(nw::input const& ref, nw::input const& src)
+std::string serial::align(nw::input const& ref, nw::input const& src)
 {
     n_row = src.length();
     n_col = ref.length();
@@ -47,7 +42,7 @@ int serial::fill(nw::input const& ref, nw::input const& src)
         std::swap(prev, curr);
 
         curr[0] = rw * gap;
-        (*this)(rw, 0) = nw::trace::insert;
+        matrix[rw * n_col] = nw::trace::insert;
 
         for (std::size_t cl = 1; cl < n_col; ++cl)
         {
@@ -56,11 +51,11 @@ int serial::fill(nw::input const& ref, nw::input const& src)
             int remove = curr[cl - 1] + gap;
 
             curr[cl] = std::max({pair, insert, remove});
-            (*this)(rw, cl) = find_trace(pair, insert, remove);
+            matrix[rw * n_col + cl] = find_trace(pair, insert, remove);
         }
     }
 
-    return curr[n_col - 1];
+    return traceback(ref, src);
 }
 
 int serial::score(nw::input const& ref, nw::input const& src)
@@ -106,4 +101,38 @@ nw::trace serial::find_trace(int pair, int insert, int remove)
     {
         return (insert > remove) ? nw::trace::insert : nw::trace::remove;
     }
+}
+
+std::string serial::traceback(nw::input const& ref, nw::input const& src) const
+{
+    std::string result;
+
+    std::size_t rw = n_row - 1;
+    std::size_t cl = n_col - 1;
+
+    while (rw != 0 || cl != 0)
+    {
+        nw::trace trace = matrix[rw * n_col + cl];
+
+        if (trace == nw::trace::pair)
+        {
+            result += (ref[cl] == src[rw]) ? '*' : '!';
+
+            --rw;
+            --cl;
+        }
+        else if (trace == nw::trace::insert)
+        {
+            result += '-';
+            --rw;
+        }
+        else if (trace == nw::trace::remove)
+        {
+            result += '-';
+            --cl;
+        }
+    }
+
+    std::reverse(result.begin(), result.end());
+    return result;
 }

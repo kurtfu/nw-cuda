@@ -26,10 +26,8 @@ namespace nw
     public:
         virtual ~aligner() = default;
 
-        virtual trace& operator()(std::size_t rw, std::size_t cl) = 0;
-
-        virtual int fill(nw::input const& ref, nw::input const& src) = 0;
-        virtual int score(nw::input const& ref, nw::input const& src) = 0;
+        virtual std::string align(input const& ref, input const& src) = 0;
+        virtual int score(input const& ref, input const& src) = 0;
 
     protected:
         int match;

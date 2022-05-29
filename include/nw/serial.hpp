@@ -19,13 +19,12 @@ namespace nw
         serial(int match, int miss, int gap);
         ~serial() = default;
 
-        trace& operator()(std::size_t rw, std::size_t cl) override;
-
-        int fill(nw::input const& ref, nw::input const& src) override;
+        std::string align(nw::input const& ref, nw::input const& src) override;
         int score(nw::input const& ref, nw::input const& src) override;
 
     private:
         trace find_trace(int pair, int insert, int remove);
+        std::string traceback(nw::input const& ref, nw::input const& src) const;
     };
 }
 
