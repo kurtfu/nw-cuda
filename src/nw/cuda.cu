@@ -22,17 +22,7 @@ cuda::cuda(int match, int miss, int gap)
     this->gap = gap;
 }
 
-nw::trace& cuda::operator()(std::size_t rw, std::size_t cl)
-{
-    std::size_t ad = rw + cl;
-
-    std::size_t top = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t pos = prior_element_count(ad) + (rw - top);
-
-    return matrix[pos];
-}
-
-int cuda::fill(nw::input const& ref, nw::input const& src)
+std::string cuda::align(nw::input const& ref, nw::input const& src)
 {
     n_row = src.length();
     n_col = ref.length();
@@ -63,7 +53,7 @@ int cuda::fill(nw::input const& ref, nw::input const& src)
         ad = to;
     }
 
-    return nw.read_similarity_score();
+    return traceback(ref, src);
 }
 
 int cuda::score(nw::input const& ref, nw::input const& src)
@@ -86,7 +76,17 @@ int cuda::score(nw::input const& ref, nw::input const& src)
 /*  PRIVATE METHODS                                                          */
 /*****************************************************************************/
 
-std::size_t cuda::partition_payload()
+nw::trace const& cuda::operator()(std::size_t rw, std::size_t cl) const
+{
+    std::size_t ad = rw + cl;
+
+    std::size_t top = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t pos = prior_element_count(ad) + (rw - top);
+
+    return matrix[pos];
+}
+
+std::size_t cuda::partition_payload() const
 {
     static constexpr std::size_t threshold = 2'000'000;
 
@@ -98,7 +98,7 @@ std::size_t cuda::partition_payload()
     return (payload < max_vect) ? max_vect : payload;
 }
 
-std::size_t cuda::prior_element_count(std::size_t ad)
+std::size_t cuda::prior_element_count(std::size_t ad) const
 {
     std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
     std::size_t cl = (ad < n_col) ? ad : n_col - 1;
@@ -140,4 +140,38 @@ std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
 std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
 {
     return prior_element_count(end) - prior_element_count(start);
+}
+
+std::string cuda::traceback(nw::input const& ref, nw::input const& src) const
+{
+    std::string result;
+
+    std::size_t rw = n_row - 1;
+    std::size_t cl = n_col - 1;
+
+    while (rw != 0 || cl != 0)
+    {
+        nw::trace trace = (*this)(rw, cl);
+
+        if (trace == nw::trace::pair)
+        {
+            result += (ref[cl] == src[rw]) ? '*' : '!';
+
+            --rw;
+            --cl;
+        }
+        else if (trace == nw::trace::insert)
+        {
+            result += '-';
+            --rw;
+        }
+        else if (trace == nw::trace::remove)
+        {
+            result += '-';
+            --cl;
+        }
+    }
+
+    std::reverse(result.begin(), result.end());
+    return result;
 }

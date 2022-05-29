@@ -36,29 +36,15 @@ public:
         }
     }
 
-    void profile_samples(nw::approach approach, Profiler::method func)
+    void profile_samples(nw::approach approach, std::string const& func)
     {
-        std::string line;
-
-        while (std::getline(input, line))
+        if (func == "align")
         {
-            auto sequences = parse_input_line(line);
-
-            auto ref = sequences.first;
-            auto src = sequences.second;
-
-            auto begin = std::chrono::high_resolution_clock::now();
-
-            auto nw = nw::creator(approach).create(1, -1, -2);
-            int score = std::invoke(func, *nw, ref, src);
-
-            auto end = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<scale>(end - begin);
-
-            auto exec_time = elapsed.count();
-
-            std::cout << "Exec Time: " << exec_time << '\n';
-            output << src.length() << ',' << score << ',' << exec_time << '\n';
+            execute(approach, &nw::aligner::align);
+        }
+        else if (func == "score")
+        {
+            execute(approach, &nw::aligner::score);
         }
     }
 
@@ -73,6 +59,33 @@ private:
         iss >> src >> ref;
 
         return std::make_pair(nw::input(ref), nw::input(src));
+    }
+
+    template <typename T>
+    void execute(nw::approach approach, T func)
+    {
+        std::string line;
+
+        while (std::getline(input, line))
+        {
+            auto sequences = parse_input_line(line);
+
+            auto ref = sequences.first;
+            auto src = sequences.second;
+
+            auto begin = std::chrono::high_resolution_clock::now();
+
+            auto nw = nw::creator(approach).create(1, -1, -2);
+            auto score = std::invoke(func, *nw, ref, src);
+
+            auto end = std::chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<scale>(end - begin);
+
+            auto exec_time = elapsed.count();
+
+            std::cout << "Exec Time: " << exec_time << '\n';
+            output << src.length() << ',' << score << ',' << exec_time << '\n';
+        }
     }
 
     std::ifstream input;
@@ -124,24 +137,6 @@ nw::approach const& cxxopts::OptionValue::as<nw::approach>() const
     return opts[arg];
 }
 
-template <>
-Profiler::method const& cxxopts::OptionValue::as<Profiler::method>() const
-{
-    static std::unordered_map<std::string, Profiler::method> opts = {
-        {"fill",  &nw::aligner::fill },
-        {"score", &nw::aligner::score},
-    };
-
-    auto arg = this->as<std::string>();
-
-    if (opts.find(arg) == opts.end())
-    {
-        throw std::runtime_error("\'" + arg + "\' is not a valid approach");
-    }
-
-    return opts[arg];
-}
-
 /*****************************************************************************/
 /*  MAIN APPLICATION                                                         */
 /*****************************************************************************/
@@ -153,7 +148,7 @@ int main(int argc, char const* argv[])
         auto args = parse_program_argumnets(argc, argv);
 
         auto approach = args["approach"].as<nw::approach>();
-        auto test = args["test"].as<Profiler::method>();
+        auto test = args["test"].as<std::string>();
 
         auto samples = args["input"].as<std::string>();
         auto log = args["output"].as<std::string>();
