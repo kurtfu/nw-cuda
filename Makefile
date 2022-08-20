@@ -2,52 +2,17 @@
 # PROJECT CONFIGURATIONS
 #------------------------------------------------------------------------------
 
-# The tag describes the name of the project.
-PROJ = $(notdir ${CURDIR})
+# The name of the project
+PROJ := $(notdir $(CURDIR))
 
 #------------------------------------------------------------------------------
 # PATH DEFINITIONS
 #------------------------------------------------------------------------------
 
-PROJ_PATH  = .
-BIN_PATH   = $(addsuffix /bin, ${PROJ_PATH})
-BUILD_PATH = $(addsuffix /build, ${PROJ_PATH})
+PROJ_PATH = .
 
-#------------------------------------------------------------------------------
-# SHELL COMMANDS
-#------------------------------------------------------------------------------
-
-ifeq (${OS}, Windows_NT)
-    MKDIR = mkdir 2>nul     # Make directory and suspend any error.
-    RMDIR = rd /s /q 2>nul  # Remove directory and suspend any error.
-else
-    MKDIR = mkdir -p        # Make directory and suspend any error.
-    RMDIR = rm -rf          # Remove directory and suspend any error.
-endif
-
-#------------------------------------------------------------------------------
-# INPUT & OUTPUT FILE DEFINITIONS
-#------------------------------------------------------------------------------
-
-# The tag describes the search path for header files of the project.
-IPATH = ${PROJ_PATH}/include
-
-# The tag describes the source files of the project.
-SRC  = $(wildcard ${PROJ_PATH}/*.cpp)     \
-       $(wildcard ${PROJ_PATH}/src/*.cpp) \
-       $(wildcard ${PROJ_PATH}/src/*.cu)
-
-# The tag describes the object files of the project.
-OBJ  = $(patsubst ${PROJ_PATH}/%.cpp,${BUILD_PATH}/%.o, ${SRC})
-OBJ := $(patsubst ${PROJ_PATH}/%.cu,${BUILD_PATH}/%.o, ${OBJ})
-
-# The tag describes the output file of the project.
-OUT  = $(addprefix ${BIN_PATH}/, ${PROJ})
-
-# Convert object suffix to MSVC style if the host is Windows.
-ifeq (${OS}, Windows_NT)
-    OBJ := $(OBJ:.o=.obj)
-endif
+BIN_DIR   = $(PROJ_PATH)/bin
+BUILD_DIR = $(PROJ_PATH)/build
 
 #------------------------------------------------------------------------------
 # BUILD TOOLS
@@ -59,48 +24,128 @@ NVCC = nvcc  # CUDA/C++ Compiler
 # COMPILER & LINKER FLAGS
 #------------------------------------------------------------------------------
 
-NVCCFLAGS = $(addprefix -I, ${IPATH}) \
-            -expt-relaxed-constexpr \
+NVCCFLAGS = $(addprefix -I, $(IPATH)) \
             -std=c++17 \
+            -MD \
             -O2
+
+#------------------------------------------------------------------------------
+# INPUT FILE DEFINITIONS
+#------------------------------------------------------------------------------
+
+# Search path for header files of the project
+IPATH = $(PROJ_PATH)/include \
+        $(PROJ_PATH)/vendor/cxxopts/include
+
+# Source list of the project
+SRC = $(wildcard $(PROJ_PATH)/src/nw/*.cpp)  \
+      $(wildcard $(PROJ_PATH)/src/nw/*.cu)   \
+      $(wildcard $(PROJ_PATH)/src/profiler/*.cpp)
+
+ifneq ($(MAKECMDGOALS), test)
+    SRC += $(PROJ_PATH)/main.cpp
+else
+    SRC += $(wildcard $(PROJ_PATH)/test/*.cpp) \
+           $(wildcard $(PROJ_PATH)/test/catch2/*.cpp)
+endif
+
+#------------------------------------------------------------------------------
+# OUTPUT FILE DEFINITIONS
+#------------------------------------------------------------------------------
+
+# Object list of the project
+OBJ  = $(patsubst $(PROJ_PATH)/%.cpp,$(BUILD_DIR)/%, $(SRC))
+OBJ := $(patsubst $(PROJ_PATH)/%.cu,$(BUILD_DIR)/%, $(OBJ))
+
+# Dependency list of the modules
+DEP  = $(patsubst $(PROJ_PATH)/%.cpp,$(BUILD_DIR)/%.d, $(SRC))
+DEP := $(patsubst $(PROJ_PATH)/%.cu,$(BUILD_DIR)/%.d, $(DEP))
+
+# The executable output of the project
+OUT  = $(addprefix $(BIN_DIR)/, $(PROJ))
+
+# Unit tests of the project
+TEST = $(addprefix $(BIN_DIR)/, $(PROJ)-test)
+
+#------------------------------------------------------------------------------
+# EXTENSION ALIGNMENTS
+#------------------------------------------------------------------------------
+
+ifeq ($(OS), Windows_NT)
+    OBJ  := $(addsuffix .obj,$(OBJ))
+    OUT  := $(addsuffix .exe,$(OUT))
+    TEST := $(addsuffix .exe,$(TEST))
+else
+    OBJ  := $(addsuffix .o,$(OBJ))
+    OUT  := $(addsuffix .out,$(OUT))
+    TEST := $(addsuffix .out,$(TEST))
+endif
+
+#------------------------------------------------------------------------------
+# SHELL COMMANDS
+#------------------------------------------------------------------------------
+
+ifeq ($(OS), Windows_NT)
+    SHELL = cmd
+    MKDIR = mkdir 2>nul
+    RMDIR = rd /s /q 2>nul
+else
+    SHELL = /bin/sh
+    MKDIR = mkdir -p
+    RMDIR = rm -rf
+endif
 
 #------------------------------------------------------------------------------
 # MAKE RULES
 #------------------------------------------------------------------------------
 
-.PHONY: all clean seqgen
-
-all: ${OUT}
-	@echo "Project Build Successfully"
+all: $(OUT)
+	@echo "  Built target $<"
+.PHONY: all
 
 clean:
-	@${RMDIR} "${BIN_PATH}" ||:
-	@${RMDIR} "${BUILD_PATH}" ||:
-	@echo "Project Cleaned Successfully"
+	@$(RMDIR) "$(BIN_DIR)" ||:
+	@$(RMDIR) "$(BUILD_DIR)" ||:
+	@echo "  Clean finished"
+.PHONY: clean
 
-seqgen:
-	@$(MAKE) --no-print-directory -C utils
+test: $(TEST)
+	@echo "  Testing..."
+	@"$(TEST)" ||:
+.PHONY: test
 
 #------------------------------------------------------------------------------
 # BUILD RULES
 #------------------------------------------------------------------------------
 
-${OUT}: ${OBJ}
-	@${MKDIR} "$(dir $@)" ||:
-	${NVCC} -o $@ ${OBJ}
+$(OUT): $(OBJ)
+	@echo "  Linking CUDA executable $@"
+	@$(MKDIR) "$(dir $@)" ||:
+	@$(NVCC) -o $@ $(OBJ)
 
-${BUILD_PATH}/%.o: ${PROJ_PATH}/%.cpp
-	@${MKDIR} "$(dir $@)" ||:
-	${NVCC} -c $< -o $@ ${NVCCFLAGS}
+$(TEST): $(OBJ)
+	@echo "  Linking unit tests"
+	@$(MKDIR) "$(dir $@)" ||:
+	@$(NVCC) -o $@ $(OBJ)
 
-${BUILD_PATH}/%.o: ${PROJ_PATH}/%.cu
-	@${MKDIR} "$(dir $@)" ||:
-	${NVCC} -c $< -o $@ ${NVCCFLAGS}
+$(BUILD_DIR)/%.o: $(PROJ_PATH)/%.cpp
+	@echo "  Building CXX object $@"
+	@$(MKDIR) "$(dir $@)" ||:
+	@$(NVCC) -c $< -o $@ $(NVCCFLAGS)
 
-${BUILD_PATH}/%.obj: ${PROJ_PATH}/%.cpp
-	@${MKDIR} "$(dir $@)" ||:
-	${NVCC} -c $< -o $@ ${NVCCFLAGS}
+$(BUILD_DIR)/%.o: $(PROJ_PATH)/%.cu
+	@echo "  Building CUDA object $@"
+	@$(MKDIR) "$(dir $@)" ||:
+	@$(NVCC) -c $< -o $@ $(NVCCFLAGS)
 
-${BUILD_PATH}/%.obj: ${PROJ_PATH}/%.cu
-	@${MKDIR} "$(dir $@)" ||:
-	${NVCC} -c $< -o $@ ${NVCCFLAGS}
+$(BUILD_DIR)/%.obj: $(PROJ_PATH)/%.cpp
+	@echo "  Building CXX object $@"
+	@$(MKDIR) "$(dir $@)" ||:
+	@$(NVCC) -c $< -o $@ $(NVCCFLAGS)
+
+$(BUILD_DIR)/%.obj: $(PROJ_PATH)/%.cu
+	@echo "  Building CUDA object $@"
+	@$(MKDIR) "$(dir $@)" ||:
+	@$(NVCC) -c $< -o $@ $(NVCCFLAGS)
+
+-include $(DEP)

@@ -5,7 +5,7 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "aligner.hpp"
+#include "nw/aligner.hpp"
 
 /*****************************************************************************/
 /*  DATA TYPES                                                               */
@@ -19,16 +19,12 @@ namespace nw
         serial(int match, int miss, int gap);
         ~serial() = default;
 
-        std::size_t row_count() const override;
-        std::size_t col_count() const override;
-
-        trace& operator()(std::size_t rw, std::size_t cl) override;
-
-        int fill(std::string const& ref, std::string const& src) override;
-        int score(std::string const& ref, std::string const& src) override;
+        std::string align(nw::input const& ref, nw::input const& src) override;
+        int score(nw::input const& ref, nw::input const& src) override;
 
     private:
-        trace point(int pair, int insert, int remove);
+        trace find_trace(int pair, int insert, int remove);
+        std::string traceback(nw::input const& ref, nw::input const& src) const;
     };
 }
 

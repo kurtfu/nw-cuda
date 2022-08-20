@@ -1,34 +1,25 @@
-#ifndef NW_CREATOR_HPP
-#define NW_CREATOR_HPP
+#ifndef PROFILER_SCORE_HPP
+#define PROFILER_SCORE_HPP
 
 /*****************************************************************************/
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include "aligner.hpp"
-
-#include <functional>
-#include <memory>
+#include "profiler/base.hpp"
 
 /*****************************************************************************/
 /*  DATA TYPES                                                               */
 /*****************************************************************************/
 
-namespace nw
+namespace profiler
 {
-    enum class algo
-    {
-        serial,
-        cuda
-    };
-
-    class creator
+    class score : public base
     {
     public:
-        creator(algo type);
+        ~score() = default;
 
-        std::function<std::unique_ptr<aligner>(int match, int miss, int gap)> create;
+        std::string run(nw::input const& ref, nw::input const& src) override;
     };
 }
 
-#endif  // NW_CREATOR_HPP
+#endif  // PROFILER_SCORE_HPP

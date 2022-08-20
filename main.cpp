@@ -2,29 +2,76 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include <algorithm>
-#include <chrono>
-#include <fstream>
-#include <functional>
 #include <iostream>
-#include <sstream>
 #include <unordered_map>
 
-#include "creator.hpp"
+#include "cxxopts.hpp"
+
+#include "nw/creator.hpp"
+#include "profiler/creator.hpp"
 
 /*****************************************************************************/
-/*  TYPE ALIASES                                                             */
+/*  MODULE FUNCTIONS                                                         */
 /*****************************************************************************/
 
-using test_fn = int(nw::aligner::*)(std::string const&, std::string const&);
+cxxopts::ParseResult parse_program_argumnets(int argc, char const* argv[])
+{
+    cxxopts::Options opts("nw");
 
-/*****************************************************************************/
-/*  MODULE VARIABLES                                                         */
-/*****************************************************************************/
+    auto type = cxxopts::value<std::string>();
 
-constexpr int match = 1;
-constexpr int miss  = -1;
-constexpr int gap   = -2;
+    opts.add_options()("a,approach", "Specify the approach", type, "APPROACH");
+    opts.add_options()("h,help", "Display help");
+    opts.add_options()("i,input", "Specify the input samples", type, "FILE");
+    opts.add_options()("o,output", "Specify the output file", type, "FILE");
+    opts.add_options()("t,test", "Specify the test method", type, "METHOD");
+
+    auto args = opts.parse(argc, argv);
+
+    if (args.count("help"))
+    {
+        std::cout << opts.help() << '\n';
+        std::exit(EXIT_SUCCESS);
+    }
+
+    return args;
+}
+
+template <>
+nw::approach const& cxxopts::OptionValue::as<nw::approach>() const
+{
+    static std::unordered_map<std::string, nw::approach> opts = {
+        {"serial", nw::approach::serial},
+        {"cuda",   nw::approach::cuda  },
+    };
+
+    auto arg = this->as<std::string>();
+
+    if (opts.find(arg) == opts.end())
+    {
+        throw std::runtime_error("\'" + arg + "\' is not a valid approach");
+    }
+
+    return opts[arg];
+}
+
+template <>
+profiler::approach const& cxxopts::OptionValue::as<profiler::approach>() const
+{
+    static std::unordered_map<std::string, profiler::approach> opts = {
+        {"align", profiler::approach::align},
+        {"score", profiler::approach::score},
+    };
+
+    auto arg = this->as<std::string>();
+
+    if (opts.find(arg) == opts.end())
+    {
+        throw std::runtime_error("\'" + arg + "\' is not a valid profiler");
+    }
+
+    return opts[arg];
+}
 
 /*****************************************************************************/
 /*  MAIN APPLICATION                                                         */
@@ -32,103 +79,31 @@ constexpr int gap   = -2;
 
 int main(int argc, char const* argv[])
 {
-    std::unordered_map<std::string, nw::algo> algo = {
-        {"cuda",   nw::algo::cuda  },
-        {"serial", nw::algo::serial},
-    };
-
-    std::unordered_map<std::string, test_fn> test = {
-        {"fill",  &nw::aligner::fill },
-        {"score", &nw::aligner::score}
-    };
-
-    auto find_opt = [&](std::string&& target)
+    try
     {
-        auto opt = std::find(argv, argv + argc, target);
-        return (opt == argv + argc || (opt + 1) == argv + argc) ? nullptr : opt;
-    };
+        auto args = parse_program_argumnets(argc, argv);
 
-    auto samples = find_opt("--input");
+        auto approach = args["approach"].as<nw::approach>();
+        auto test = args["test"].as<profiler::approach>();
 
-    if (samples == nullptr)
+        auto samples = args["input"].as<std::string>();
+        auto log = args["output"].as<std::string>();
+
+        auto profiler = profiler::creator::create(test);
+
+        profiler->assign_scoring_coefficients(1, -1, -2);
+        profiler->assign_nw_approach(approach);
+
+        profiler->attach_input(samples);
+        profiler->attach_output(log);
+
+        profiler->profile_samples();
+        std::cout << "Testing has been completed!\n";
+    }
+    catch (std::exception const& ex)
     {
-        std::cerr << "Input file must be specified with \'--input\'\n";
-        return -1;
+        std::cerr << ex.what() << '\n';
     }
 
-    auto log = find_opt("--output");
-
-    if (log == nullptr)
-    {
-        std::cerr << "Output file must be specified with \'--output\'\n";
-        return -1;
-    }
-
-    auto type = find_opt("--algo");
-
-    if (type == nullptr)
-    {
-        std::cerr << "Algorithm type must be specified with \'--algo\'\n";
-        return -1;
-    }
-
-    if (algo.find(*(type + 1)) == algo.end())
-    {
-        std::cerr << *(type + 1) << " is not a valid algorithm type\n";
-        return -1;
-    }
-
-    std::ifstream input(*(samples + 1));
-    std::ofstream output(*(log + 1));
-
-    if (input.is_open() == false)
-    {
-        std::cerr << *(samples + 1) << " is not a valid input\n";
-        return -1;
-    }
-
-    auto func = find_opt("--test");
-
-    if (func == nullptr)
-    {
-        std::cerr << "Test function must be specified with \'--test\'\n";
-        return -1;
-    }
-
-    if (test.find(*(func + 1)) == test.end())
-    {
-        std::cerr << *(func + 1) << " is not a valid test function\n";
-        return -1;
-    }
-
-    std::string line;
-
-    while (std::getline(input, line))
-    {
-        std::istringstream iss(line);
-
-        std::string src;
-        std::string ref;
-
-        iss >> src >> ref;
-
-        auto creator = nw::creator(algo[*(type + 1)]);
-
-        auto begin = std::chrono::high_resolution_clock::now();
-
-        auto nw    = creator.create(match, miss, gap);
-        int  score = std::invoke(test[*(func + 1)], *nw, ref, src);
-
-        auto end     = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
-
-        std::size_t rw = nw->row_count() - 1;
-        std::size_t cl = nw->col_count() - 1;
-
-        std::cout << "Exec Time: " << elapsed.count() << '\n';
-        output << src.size() << ',' << score << ',' << elapsed.count() << '\n';
-    }
-
-    std::cout << "Testing has been completed!\n";
     return 0;
 }

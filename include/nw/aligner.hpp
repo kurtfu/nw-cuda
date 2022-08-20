@@ -5,7 +5,7 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include <string>
+#include "nw/input.hpp"
 #include <vector>
 
 /*****************************************************************************/
@@ -26,13 +26,8 @@ namespace nw
     public:
         virtual ~aligner() = default;
 
-        virtual trace& operator()(std::size_t rw, std::size_t cl) = 0;
-
-        virtual std::size_t row_count() const = 0;
-        virtual std::size_t col_count() const = 0;
-
-        virtual int fill(std::string const& ref, std::string const& src)  = 0;
-        virtual int score(std::string const& ref, std::string const& src) = 0;
+        virtual std::string align(input const& ref, input const& src) = 0;
+        virtual int score(input const& ref, input const& src) = 0;
 
     protected:
         int match;
