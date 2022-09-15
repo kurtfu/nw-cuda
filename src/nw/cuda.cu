@@ -12,7 +12,7 @@
 using nw::cuda;
 
 /*****************************************************************************/
-/*  PUBLIC METHODS                                                           */
+/*  MEMBER FUNCTIONS                                                         */
 /*****************************************************************************/
 
 cuda::cuda(int match, int miss, int gap)
@@ -20,6 +20,22 @@ cuda::cuda(int match, int miss, int gap)
     this->match = match;
     this->miss = miss;
     this->gap = gap;
+}
+
+int cuda::score(nw::input const& ref, nw::input const& src)
+{
+    n_row = src.length();
+    n_col = ref.length();
+
+    kernel nw(match, miss, gap);
+    nw.init(ref, src);
+
+    std::size_t from = 1;
+    std::size_t to = n_row + n_col - 1;
+
+    nw.launch(from, to, false);
+
+    return nw.read_similarity_score();
 }
 
 std::string cuda::align(nw::input const& ref, nw::input const& src)
@@ -56,36 +72,6 @@ std::string cuda::align(nw::input const& ref, nw::input const& src)
     return traceback(ref, src);
 }
 
-int cuda::score(nw::input const& ref, nw::input const& src)
-{
-    n_row = src.length();
-    n_col = ref.length();
-
-    kernel nw(match, miss, gap);
-    nw.init(ref, src);
-
-    std::size_t from = 1;
-    std::size_t to = n_row + n_col - 1;
-
-    nw.launch(from, to, false);
-
-    return nw.read_similarity_score();
-}
-
-/*****************************************************************************/
-/*  PRIVATE METHODS                                                          */
-/*****************************************************************************/
-
-nw::trace const& cuda::operator()(std::size_t rw, std::size_t cl) const
-{
-    std::size_t ad = rw + cl;
-
-    std::size_t top = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t pos = prior_element_count(ad) + (rw - top);
-
-    return matrix[pos];
-}
-
 std::size_t cuda::partition_payload() const
 {
     static constexpr std::size_t threshold = 2'000'000;
@@ -96,24 +82,6 @@ std::size_t cuda::partition_payload() const
     std::size_t payload = (capacity < threshold) ? capacity : threshold;
 
     return (payload < max_vect) ? max_vect : payload;
-}
-
-std::size_t cuda::prior_element_count(std::size_t ad) const
-{
-    std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t cl = (ad < n_col) ? ad : n_col - 1;
-
-    std::size_t n_vect = std::min(n_row - rw, cl + 1);
-
-    std::size_t start = cl;
-    std::size_t end = start - n_vect + 1;
-
-    std::size_t size = rw * n_col;
-
-    size += (start * (start + 1) / 2);
-    size -= (end * (end - 1) / 2);
-
-    return size;
 }
 
 std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
@@ -140,6 +108,34 @@ std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
 std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
 {
     return prior_element_count(end) - prior_element_count(start);
+}
+
+std::size_t cuda::prior_element_count(std::size_t ad) const
+{
+    std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t cl = (ad < n_col) ? ad : n_col - 1;
+
+    std::size_t n_vect = std::min(n_row - rw, cl + 1);
+
+    std::size_t start = cl;
+    std::size_t end = start - n_vect + 1;
+
+    std::size_t size = rw * n_col;
+
+    size += (start * (start + 1) / 2);
+    size -= (end * (end - 1) / 2);
+
+    return size;
+}
+
+nw::trace const& cuda::operator()(std::size_t rw, std::size_t cl) const
+{
+    std::size_t ad = rw + cl;
+
+    std::size_t top = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t pos = prior_element_count(ad) + (rw - top);
+
+    return matrix[pos];
 }
 
 std::string cuda::traceback(nw::input const& ref, nw::input const& src) const

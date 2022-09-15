@@ -14,7 +14,7 @@
 using profiler::creator;
 
 /*****************************************************************************/
-/*  PUBLIC METHODS                                                           */
+/*  MEMBER FUNCTIONS                                                         */
 /*****************************************************************************/
 
 std::unique_ptr<profiler::base> creator::create(profiler::approach type)

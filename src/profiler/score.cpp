@@ -11,7 +11,7 @@
 using profiler::score;
 
 /*****************************************************************************/
-/*  PUBLIC METHODS                                                           */
+/*  MEMBER FUNCTIONS                                                         */
 /*****************************************************************************/
 
 std::string score::run(nw::input const& ref, nw::input const& src)

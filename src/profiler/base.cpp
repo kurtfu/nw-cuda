@@ -21,7 +21,7 @@ using profiler::base;
 using scale = std::chrono::milliseconds;
 
 /*****************************************************************************/
-/*  PUBLIC METHODS                                                           */
+/*  MEMBER FUNCTIONS                                                         */
 /*****************************************************************************/
 
 void base::assign_scoring_coefficients(int match, int miss, int gap)

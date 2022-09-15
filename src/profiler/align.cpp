@@ -11,7 +11,7 @@
 using profiler::align;
 
 /*****************************************************************************/
-/*  PUBLIC METHODS                                                           */
+/*  MEMBER FUNCTIONS                                                         */
 /*****************************************************************************/
 
 std::string align::run(nw::input const& ref, nw::input const& src)
