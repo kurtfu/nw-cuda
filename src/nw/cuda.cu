@@ -49,7 +49,7 @@ std::string cuda::align(nw::input const& ref, nw::input const& src)
     kernel nw(match, miss, gap);
     nw.init(ref, src);
 
-    std::size_t payload = partition_payload();
+    std::size_t payload = calculate_payload();
     nw.allocate_traceback_matrix(payload);
 
     std::size_t n_diag = n_row + n_col - 1;
@@ -58,7 +58,7 @@ std::string cuda::align(nw::input const& ref, nw::input const& src)
     for (std::size_t ad = 1; ad < n_diag;)
     {
         std::size_t from = ad;
-        std::size_t to = find_submatrix_end(ad, payload);
+        std::size_t to = find_submatrix_border_vector(ad);
 
         nw.launch(from, to, true);
 
@@ -72,7 +72,7 @@ std::string cuda::align(nw::input const& ref, nw::input const& src)
     return traceback(ref, src);
 }
 
-std::size_t cuda::partition_payload() const
+std::size_t cuda::calculate_payload() const
 {
     static constexpr std::size_t threshold = 2'000'000;
 
@@ -84,30 +84,31 @@ std::size_t cuda::partition_payload() const
     return (payload < max_vect) ? max_vect : payload;
 }
 
-std::size_t cuda::find_submatrix_end(std::size_t start, std::size_t payload)
+std::size_t cuda::find_submatrix_border_vector(std::size_t start) const
 {
     std::size_t n_diag = n_row + n_col - 1;
-
     std::size_t end = start;
-    std::size_t total = 0;
 
-    while (end < n_diag && total < payload)
+    std::size_t current_payload = 0;
+    std::size_t maximum_payload = calculate_payload();
+
+    while (end < n_diag && current_payload < maximum_payload)
     {
         std::size_t rw = (end < n_col) ? 0 : end - n_col + 1;
         std::size_t cl = (end < n_col) ? end : n_col - 1;
 
         std::size_t n_vect = std::min(n_row - rw, cl + 1);
 
-        total += n_vect;
+        current_payload += n_vect;
         ++end;
     }
 
-    return (total > payload) ? end - 1 : end;
+    return (current_payload > maximum_payload) ? end - 1 : end;
 }
 
-std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end)
+std::size_t cuda::find_submatrix_size(std::size_t from, std::size_t to) const
 {
-    return prior_element_count(end) - prior_element_count(start);
+    return prior_element_count(to) - prior_element_count(from);
 }
 
 std::size_t cuda::prior_element_count(std::size_t ad) const
