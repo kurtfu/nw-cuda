@@ -23,15 +23,13 @@ namespace nw
         int score(nw::input const& ref, nw::input const& src) override;
 
     private:
-        trace const& operator()(std::size_t rw, std::size_t cl) const;
+        nw::trace const& operator()(std::size_t rw, std::size_t cl) const override;
 
         std::size_t calculate_payload() const;
         std::size_t prior_element_count(std::size_t ad) const;
 
         std::size_t find_submatrix_border_vector(std::size_t start) const;
         std::size_t find_submatrix_size(std::size_t from, std::size_t to) const;
-
-        std::string traceback(nw::input const& ref, nw::input const& src) const;
     };
 }
 

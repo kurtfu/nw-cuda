@@ -18,11 +18,8 @@ using nw::serial;
 /*****************************************************************************/
 
 serial::serial(int match, int miss, int gap)
-{
-    this->match = match;
-    this->miss = miss;
-    this->gap = gap;
-}
+    : aligner{match, miss, gap}
+{}
 
 int serial::score(nw::input const& ref, nw::input const& src)
 {
@@ -87,48 +84,7 @@ std::string serial::align(nw::input const& ref, nw::input const& src)
     return traceback(ref, src);
 }
 
-nw::trace serial::find_trace(int pair, int insert, int remove)
+nw::trace const& serial::operator()(std::size_t rw, std::size_t cl) const
 {
-    if (pair > insert)
-    {
-        return (pair > remove) ? nw::trace::pair : nw::trace::remove;
-    }
-    else
-    {
-        return (insert > remove) ? nw::trace::insert : nw::trace::remove;
-    }
-}
-
-std::string serial::traceback(nw::input const& ref, nw::input const& src) const
-{
-    std::string result;
-
-    std::size_t rw = n_row - 1;
-    std::size_t cl = n_col - 1;
-
-    while (rw != 0 || cl != 0)
-    {
-        nw::trace trace = matrix[rw * n_col + cl];
-
-        if (trace == nw::trace::pair)
-        {
-            result += (ref[cl] == src[rw]) ? '*' : '!';
-
-            --rw;
-            --cl;
-        }
-        else if (trace == nw::trace::insert)
-        {
-            result += '-';
-            --rw;
-        }
-        else if (trace == nw::trace::remove)
-        {
-            result += '-';
-            --cl;
-        }
-    }
-
-    std::reverse(result.begin(), result.end());
-    return result;
+    return matrix[rw * n_col + cl];
 }

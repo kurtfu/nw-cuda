@@ -23,8 +23,7 @@ namespace nw
         int score(nw::input const& ref, nw::input const& src) override;
 
     private:
-        trace find_trace(int pair, int insert, int remove);
-        std::string traceback(nw::input const& ref, nw::input const& src) const;
+        nw::trace const& operator()(std::size_t rw, std::size_t cl) const override;
     };
 }
 
