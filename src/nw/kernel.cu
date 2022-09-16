@@ -30,7 +30,7 @@ namespace cg = cooperative_groups;
 
 namespace
 {
-    __global__ void fill(kernel nw, std::size_t from, std::size_t to, bool tb)
+    __global__ void align(kernel nw, std::size_t from, std::size_t to)
     {
         cg::grid_group grid = cg::this_grid();
 
@@ -38,7 +38,22 @@ namespace
         {
             nw.swap_vectors();
 
-            nw.score(ad, tb);
+            nw.align(ad);
+            nw.advance(ad);
+
+            grid.sync();
+        }
+    }
+
+    __global__ void score(kernel nw, std::size_t from, std::size_t to)
+    {
+        cg::grid_group grid = cg::this_grid();
+
+        for (std::size_t ad = from; ad < to; ++ad)
+        {
+            nw.swap_vectors();
+
+            nw.score(ad);
             nw.advance(ad);
 
             grid.sync();
@@ -52,7 +67,7 @@ __device__ void kernel::swap_vectors()
     thrust::swap(hv, curr);
 }
 
-__device__ void kernel::score(std::size_t ad, bool traceback)
+__device__ void kernel::align(std::size_t ad)
 {
     thrust::minimum<std::size_t> min;
     thrust::maximum<int> max;
@@ -75,12 +90,33 @@ __device__ void kernel::score(std::size_t ad, bool traceback)
         int remove = hv[pos] + gap;
 
         curr[pos] = max(pair, max(insert, remove));
+        submatrix[iter] = find_trace(pair, insert, remove);
 
-        if (traceback)
-        {
-            submatrix[iter] = find_trace(pair, insert, remove);
-            iter += grid_size();
-        }
+        iter += grid_size();
+    }
+}
+
+__device__ void kernel::score(std::size_t ad)
+{
+    thrust::minimum<std::size_t> min;
+    thrust::maximum<int> max;
+
+    std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t cl = (ad < n_col) ? ad : n_col - 1;
+
+    std::size_t pos = thread_rank() + rw + 1;
+    std::size_t end = min(n_row - rw, cl + 1) + rw + 1;
+
+    for (; pos < end; pos += grid_size())
+    {
+        rw += thread_rank();
+        cl -= thread_rank();
+
+        int pair = diag[pos - 1] + ((ref[cl] == src[rw]) ? match : miss);
+        int insert = hv[pos - 1] + gap;
+        int remove = hv[pos] + gap;
+
+        curr[pos] = max(pair, max(insert, remove));
     }
 }
 
@@ -97,7 +133,7 @@ __device__ std::size_t kernel::grid_size() const
     return (blockDim.y * gridDim.y) * (blockDim.x * gridDim.x);
 }
 
-__device__ nw::trace kernel::find_trace(int pair, int insert, int remove)
+__device__ nw::trace kernel::find_trace(int pair, int insert, int remove) const
 {
     if (pair > insert)
     {
@@ -183,22 +219,38 @@ __host__ void kernel::allocate_traceback_matrix(std::size_t payload)
     cudaMalloc(&submatrix, payload * sizeof(trace));
 }
 
-__host__ void kernel::launch(std::size_t from, std::size_t to, bool traceback)
+__host__ void kernel::calculate_similarity()
 {
-    void* args[] = {this, &from, &to, &traceback};
-    void* kernel = fill;
+    std::size_t from = 1;
+    std::size_t to = n_row + n_col - 1;
 
-    std::size_t n_vect = n_row;
+    void* kernel = ::score;
+    void* args[] = {this, &from, &to};
 
-    dim3 grid;
-    dim3 block;
-
-    std::tie(grid, block) = align_dimension(n_vect);
-
-    cudaLaunchCooperativeKernel(kernel, grid, block, args);
+    launch(kernel, args);
 
     std::size_t n_iter = to - from;
     realign_vectors(n_iter);
+}
+
+__host__ void kernel::align_sequences(std::size_t from, std::size_t to)
+{
+    void* kernel = ::align;
+    void* args[] = {this, &from, &to};
+
+    launch(kernel, args);
+
+    std::size_t n_iter = to - from;
+    realign_vectors(n_iter);
+}
+
+__host__ void kernel::launch(void* kernel, void* args[])
+{
+    dim3 grid;
+    dim3 block;
+
+    std::tie(grid, block) = calculate_kernel_dimensions();
+    cudaLaunchCooperativeKernel(kernel, grid, block, args);
 }
 
 __host__ void kernel::realign_vectors(std::size_t n_iter)
@@ -217,13 +269,15 @@ __host__ void kernel::realign_vectors(std::size_t n_iter)
     }
 }
 
-__host__ std::pair<dim3, dim3> kernel::align_dimension(std::size_t n_vect)
+__host__ std::pair<dim3, dim3> kernel::calculate_kernel_dimensions() const
 {
     int dev;
     cudaGetDevice(&dev);
 
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, dev);
+
+    std::size_t n_vect = n_row;
 
     std::size_t n_block = (n_vect % prop.maxThreadsPerBlock) ? 1 : 0;
     n_block += n_vect / prop.maxThreadsPerBlock;

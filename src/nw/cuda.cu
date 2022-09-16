@@ -28,11 +28,7 @@ int cuda::score(nw::input const& ref, nw::input const& src)
     kernel nw(match, miss, gap);
     nw.init(ref, src);
 
-    std::size_t from = 1;
-    std::size_t to = n_row + n_col - 1;
-
-    nw.launch(from, to, false);
-
+    nw.calculate_similarity();
     return nw.read_similarity_score();
 }
 
@@ -58,7 +54,7 @@ std::string cuda::align(nw::input const& ref, nw::input const& src)
         std::size_t from = ad;
         std::size_t to = find_submatrix_border_vector(ad);
 
-        nw.launch(from, to, true);
+        nw.align_sequences(from, to);
 
         std::size_t size = find_submatrix_size(from, to);
         nw.transfer(&matrix[pos], size);
