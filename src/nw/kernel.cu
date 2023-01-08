@@ -245,7 +245,7 @@ __host__ void kernel::align_sequences(std::size_t from, std::size_t to)
     realign_vectors(n_iter);
 }
 
-__host__ void kernel::launch(void* kernel, void* args[])
+__host__ void kernel::launch(void* kernel, void** args)
 {
     auto dimensions = calculate_kernel_dimensions();
 

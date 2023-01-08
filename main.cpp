@@ -14,7 +14,7 @@
 /*  MODULE FUNCTIONS                                                         */
 /*****************************************************************************/
 
-cxxopts::ParseResult parse_program_argumnets(int argc, char const* argv[])
+cxxopts::ParseResult parse_program_argumnets(int argc, char const** argv)
 {
     cxxopts::Options opts("nw");
 

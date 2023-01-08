@@ -43,7 +43,7 @@ namespace nw
 
     private:
         __host__ std::pair<dim3, dim3> calculate_kernel_dimensions() const;
-        __host__ void launch(void* kernel, void* args[]);
+        __host__ void launch(void* kernel, void** args);
 
         __host__ void load(nw::input const& ref, nw::input const& src);
         __host__ void allocate_vectors();
