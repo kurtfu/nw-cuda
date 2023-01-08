@@ -27,10 +27,8 @@ nw::trace aligner::find_trace(int pair, int insert, int remove)
     {
         return (pair > remove) ? nw::trace::pair : nw::trace::remove;
     }
-    else
-    {
-        return (insert > remove) ? nw::trace::insert : nw::trace::remove;
-    }
+
+    return (insert > remove) ? nw::trace::insert : nw::trace::remove;
 }
 
 std::string aligner::traceback(nw::input const& ref, nw::input const& src) const

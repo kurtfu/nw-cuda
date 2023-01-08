@@ -140,10 +140,8 @@ __device__ nw::trace kernel::find_trace(int pair, int insert, int remove)
     {
         return (pair > remove) ? nw::trace::pair : nw::trace::remove;
     }
-    else
-    {
-        return (insert > remove) ? nw::trace::insert : nw::trace::remove;
-    }
+
+    return (insert > remove) ? nw::trace::insert : nw::trace::remove;
 }
 
 __device__ void kernel::advance(std::size_t ad)
