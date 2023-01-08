@@ -224,7 +224,7 @@ __host__ void kernel::calculate_similarity()
     std::size_t from = 1;
     std::size_t to = n_row + n_col - 1;
 
-    void* kernel = ::score;
+    void* kernel = (void*)::score;
     void* args[] = {this, &from, &to};
 
     launch(kernel, args);
@@ -235,7 +235,7 @@ __host__ void kernel::calculate_similarity()
 
 __host__ void kernel::align_sequences(std::size_t from, std::size_t to)
 {
-    void* kernel = ::align;
+    void* kernel = (void*)::align;
     void* args[] = {this, &from, &to};
 
     launch(kernel, args);
