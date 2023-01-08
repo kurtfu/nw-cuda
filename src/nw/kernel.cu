@@ -120,7 +120,7 @@ __device__ void kernel::score(std::size_t ad)
     }
 }
 
-__device__ std::size_t kernel::thread_rank() const
+__device__ std::size_t kernel::thread_rank()
 {
     std::size_t const thread_id = (threadIdx.y * blockDim.x) + threadIdx.x;
     std::size_t const block_id = (blockIdx.y * gridDim.x) + blockIdx.x;
@@ -128,12 +128,12 @@ __device__ std::size_t kernel::thread_rank() const
     return (block_id * (blockDim.x * blockDim.y)) + thread_id;
 }
 
-__device__ std::size_t kernel::grid_size() const
+__device__ std::size_t kernel::grid_size()
 {
     return (blockDim.y * gridDim.y) * (blockDim.x * gridDim.x);
 }
 
-__device__ nw::trace kernel::find_trace(int pair, int insert, int remove) const
+__device__ nw::trace kernel::find_trace(int pair, int insert, int remove)
 {
     if (pair > insert)
     {

@@ -38,7 +38,7 @@ namespace nw
         virtual int score(nw::input const& ref, nw::input const& src) = 0;
 
     protected:
-        nw::trace find_trace(int pair, int insert, int remove);
+        static nw::trace find_trace(int pair, int insert, int remove);
         [[nodiscard]] std::string traceback(nw::input const& ref, nw::input const& src) const;
 
         int match;

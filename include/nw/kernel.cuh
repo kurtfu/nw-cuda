@@ -49,10 +49,10 @@ namespace nw
         __host__ void allocate_vectors();
         __host__ void realign_vectors(std::size_t n_iter);
 
-        __device__ trace find_trace(int pair, int insert, int remove) const;
+        static __device__ trace find_trace(int pair, int insert, int remove) ;
 
-        __device__ std::size_t thread_rank() const;
-        __device__ std::size_t grid_size() const;
+        static __device__ std::size_t thread_rank() ;
+        static __device__ std::size_t grid_size() ;
 
         int match;
         int miss;
