@@ -28,7 +28,7 @@ cxxopts::ParseResult parse_program_argumnets(int argc, char const* argv[])
 
     auto args = opts.parse(argc, argv);
 
-    if (args.count("help"))
+    if (args.count("help") != 0)
     {
         std::cout << opts.help() << '\n';
         std::exit(EXIT_SUCCESS);

@@ -280,7 +280,7 @@ __host__ std::pair<dim3, dim3> kernel::calculate_kernel_dimensions() const
 
     std::size_t const n_vect = n_row;
 
-    std::size_t n_block = (n_vect % prop.maxThreadsPerBlock) ? 1 : 0;
+    std::size_t n_block = ((n_vect % prop.maxThreadsPerBlock) != 0) ? 1 : 0;
     n_block += n_vect / prop.maxThreadsPerBlock;
 
     if (n_block > prop.multiProcessorCount)
@@ -288,10 +288,10 @@ __host__ std::pair<dim3, dim3> kernel::calculate_kernel_dimensions() const
         n_block = prop.multiProcessorCount;
     }
 
-    std::size_t n_thread = (n_vect % n_block) ? 1 : 0;
+    std::size_t n_thread = ((n_vect % n_block) != 0) ? 1 : 0;
     n_thread += n_vect / n_block;
 
-    if (n_thread % prop.warpSize)
+    if ((n_thread % prop.warpSize) != 0)
     {
         n_thread = ((n_thread / prop.warpSize) + 1) * prop.warpSize;
     }
