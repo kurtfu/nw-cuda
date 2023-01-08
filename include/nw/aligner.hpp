@@ -25,7 +25,14 @@ namespace nw
     {
     public:
         aligner(int match, int miss, int gap);
+
+        aligner(aligner const& that) = delete;
+        aligner(aligner&& that) = delete;
+
         virtual ~aligner() = default;
+
+        aligner& operator=(aligner const& that) = delete;
+        aligner& operator=(aligner&& that) = delete;
 
         virtual std::string align(nw::input const& ref, nw::input const& src) = 0;
         virtual int score(nw::input const& ref, nw::input const& src) = 0;

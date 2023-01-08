@@ -17,7 +17,15 @@ namespace profiler
     class base
     {
     public:
+        base() = default;
+
+        base(base const& that) = delete;
+        base(base&& that) = delete;
+
         virtual ~base() = default;
+
+        base& operator=(base const& that) = delete;
+        base& operator=(base&& that) = delete;
 
         void assign_scoring_coefficients(int match, int miss, int gap);
         void assign_nw_approach(nw::approach type);
@@ -42,4 +50,4 @@ namespace profiler
     };
 }
 
-#endif  // NW_ALIGNER_HPP
+#endif  // PROFILER_BASE_HPP

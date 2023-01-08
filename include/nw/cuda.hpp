@@ -9,7 +9,7 @@
 
 /*****************************************************************************/
 /*  DATA TYPES                                                               */
-/*****************************************************************************/
+/********************************************delete*********************************/
 
 namespace nw
 {
@@ -17,7 +17,14 @@ namespace nw
     {
     public:
         cuda(int match, int miss, int gap);
+
+        cuda(cuda const& that) = delete;
+        cuda(cuda&& that) = delete;
+
         ~cuda() override = default;
+
+        cuda& operator=(cuda const& that) = delete;
+        cuda& operator=(cuda&& that) = delete;
 
         std::string align(nw::input const& ref, nw::input const& src) override;
         int score(nw::input const& ref, nw::input const& src) override;

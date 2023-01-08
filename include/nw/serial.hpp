@@ -17,7 +17,14 @@ namespace nw
     {
     public:
         serial(int match, int miss, int gap);
+
+        serial(serial const& that) = delete;
+        serial(serial&& that) = delete;
+
         ~serial() override = default;
+
+        serial& operator=(serial const& that) = delete;
+        serial& operator=(serial&& that) = delete;
 
         std::string align(nw::input const& ref, nw::input const& src) override;
         int score(nw::input const& ref, nw::input const& src) override;

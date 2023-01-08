@@ -17,6 +17,13 @@ namespace nw
     {
     public:
         __host__ kernel(int match, int miss, int gap);
+
+        __host__ kernel(kernel const& that) = delete;
+        __host__ kernel(kernel&& that) = delete;
+
+        __host__ kernel& operator=(kernel const& that) = delete;
+        __host__ kernel& operator=(kernel&& that) = delete;
+
         __host__ __device__ ~kernel();
 
         __host__ void init(nw::input const& ref, nw::input const& src);
