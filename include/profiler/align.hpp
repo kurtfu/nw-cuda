@@ -16,7 +16,7 @@ namespace profiler
     class align : public base
     {
     public:
-        ~align() = default;
+        ~align() override = default;
 
         std::string run(nw::input const& ref, nw::input const& src) override;
     };

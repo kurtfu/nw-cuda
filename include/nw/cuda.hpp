@@ -17,7 +17,7 @@ namespace nw
     {
     public:
         cuda(int match, int miss, int gap);
-        ~cuda() = default;
+        ~cuda() override = default;
 
         std::string align(nw::input const& ref, nw::input const& src) override;
         int score(nw::input const& ref, nw::input const& src) override;

@@ -16,7 +16,7 @@ namespace profiler
     class score : public base
     {
     public:
-        ~score() = default;
+        ~score() override = default;
 
         std::string run(nw::input const& ref, nw::input const& src) override;
     };
