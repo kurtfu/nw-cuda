@@ -51,7 +51,7 @@ namespace nw
         std::vector<nw::trace> matrix;
 
     private:
-        virtual nw::trace const& operator()(std::size_t rw, std::size_t cl) const = 0;
+        virtual nw::trace const& operator()(std::size_t row, std::size_t col) const = 0;
     };
 }
 

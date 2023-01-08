@@ -72,20 +72,20 @@ __device__ void kernel::align(std::size_t ad)
     thrust::minimum<std::size_t> min;
     thrust::maximum<int> max;
 
-    std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t cl = (ad < n_col) ? ad : n_col - 1;
+    std::size_t row = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t col = (ad < n_col) ? ad : n_col - 1;
 
-    std::size_t pos = thread_rank() + rw + 1;
-    std::size_t end = min(n_row - rw, cl + 1) + rw + 1;
+    std::size_t pos = thread_rank() + row + 1;
+    std::size_t end = min(n_row - row, col + 1) + row + 1;
 
     std::size_t iter = thread_rank();
 
     for (; pos < end; pos += grid_size())
     {
-        rw += thread_rank();
-        cl -= thread_rank();
+        row += thread_rank();
+        col -= thread_rank();
 
-        int pair = diag[pos - 1] + ((ref[cl] == src[rw]) ? match : miss);
+        int pair = diag[pos - 1] + ((ref[col] == src[row]) ? match : miss);
         int insert = hv[pos - 1] + gap;
         int remove = hv[pos] + gap;
 
@@ -101,18 +101,18 @@ __device__ void kernel::score(std::size_t ad)
     thrust::minimum<std::size_t> min;
     thrust::maximum<int> max;
 
-    std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t cl = (ad < n_col) ? ad : n_col - 1;
+    std::size_t row = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t col = (ad < n_col) ? ad : n_col - 1;
 
-    std::size_t pos = thread_rank() + rw + 1;
-    std::size_t end = min(n_row - rw, cl + 1) + rw + 1;
+    std::size_t pos = thread_rank() + row + 1;
+    std::size_t end = min(n_row - row, col + 1) + row + 1;
 
     for (; pos < end; pos += grid_size())
     {
-        rw += thread_rank();
-        cl -= thread_rank();
+        row += thread_rank();
+        col -= thread_rank();
 
-        int pair = diag[pos - 1] + ((ref[cl] == src[rw]) ? match : miss);
+        int pair = diag[pos - 1] + ((ref[col] == src[row]) ? match : miss);
         int insert = hv[pos - 1] + gap;
         int remove = hv[pos] + gap;
 
@@ -149,10 +149,10 @@ __device__ void kernel::advance(std::size_t ad)
 {
     thrust::minimum<std::size_t> min;
 
-    std::size_t const rw = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t const cl = (ad < n_col) ? ad : n_col - 1;
+    std::size_t const row = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t const col = (ad < n_col) ? ad : n_col - 1;
 
-    submatrix += min(n_row - rw, cl + 1);
+    submatrix += min(n_row - row, col + 1);
 }
 
 /*****************************************************************************/

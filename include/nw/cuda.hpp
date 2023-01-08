@@ -30,7 +30,7 @@ namespace nw
         int score(nw::input const& ref, nw::input const& src) override;
 
     private:
-        nw::trace const& operator()(std::size_t rw, std::size_t cl) const override;
+        nw::trace const& operator()(std::size_t row, std::size_t col) const override;
 
         [[nodiscard]] std::size_t calculate_payload() const;
         [[nodiscard]] std::size_t prior_element_count(std::size_t ad) const;
