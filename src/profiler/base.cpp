@@ -71,7 +71,7 @@ void base::profile_samples()
 
         auto begin = std::chrono::high_resolution_clock::now();
 
-        auto result = run(ref, src);
+        auto result = run(nw::input{ref}, nw::input{src});
 
         auto end = std::chrono::high_resolution_clock::now();
         auto time = std::chrono::duration_cast<scale>(end - begin);
