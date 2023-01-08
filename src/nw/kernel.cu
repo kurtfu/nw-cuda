@@ -1,3 +1,4 @@
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 /*****************************************************************************/
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
@@ -316,3 +317,4 @@ __host__ int kernel::read_similarity_score() const
 
     return score;
 }
+// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)
