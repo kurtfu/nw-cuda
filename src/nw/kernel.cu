@@ -32,7 +32,7 @@ namespace
 {
     __global__ void align(kernel nw, std::size_t from, std::size_t to)
     {
-        cg::grid_group grid = cg::this_grid();
+        cg::grid_group const grid = cg::this_grid();
 
         for (std::size_t ad = from; ad < to; ++ad)
         {
@@ -47,7 +47,7 @@ namespace
 
     __global__ void score(kernel nw, std::size_t from, std::size_t to)
     {
-        cg::grid_group grid = cg::this_grid();
+        cg::grid_group const grid = cg::this_grid();
 
         for (std::size_t ad = from; ad < to; ++ad)
         {
@@ -122,8 +122,8 @@ __device__ void kernel::score(std::size_t ad)
 
 __device__ std::size_t kernel::thread_rank() const
 {
-    std::size_t thread_id = (threadIdx.y * blockDim.x) + threadIdx.x;
-    std::size_t block_id = (blockIdx.y * gridDim.x) + blockIdx.x;
+    std::size_t const thread_id = (threadIdx.y * blockDim.x) + threadIdx.x;
+    std::size_t const block_id = (blockIdx.y * gridDim.x) + blockIdx.x;
 
     return (block_id * (blockDim.x * blockDim.y)) + thread_id;
 }
@@ -149,8 +149,8 @@ __device__ void kernel::advance(std::size_t ad)
 {
     thrust::minimum<std::size_t> min;
 
-    std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t cl = (ad < n_col) ? ad : n_col - 1;
+    std::size_t const rw = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t const cl = (ad < n_col) ? ad : n_col - 1;
 
     submatrix += min(n_row - rw, cl + 1);
 }
@@ -197,7 +197,7 @@ __host__ void kernel::load(nw::input const& ref, nw::input const& src)
 
 __host__ void kernel::allocate_vectors()
 {
-    std::size_t n_vect = n_row + 1;
+    std::size_t const n_vect = n_row + 1;
 
     cudaMalloc(&this->curr, n_vect * sizeof(int));
     cudaMalloc(&this->hv, n_vect * sizeof(int));
@@ -229,7 +229,7 @@ __host__ void kernel::calculate_similarity()
 
     launch(kernel, args);
 
-    std::size_t n_iter = to - from;
+    std::size_t const n_iter = to - from;
     realign_vectors(n_iter);
 }
 
@@ -240,16 +240,17 @@ __host__ void kernel::align_sequences(std::size_t from, std::size_t to)
 
     launch(kernel, args);
 
-    std::size_t n_iter = to - from;
+    std::size_t const n_iter = to - from;
     realign_vectors(n_iter);
 }
 
 __host__ void kernel::launch(void* kernel, void* args[])
 {
-    dim3 grid;
-    dim3 block;
+    auto dimensions = calculate_kernel_dimensions();
 
-    std::tie(grid, block) = calculate_kernel_dimensions();
+    dim3 const grid = dimensions.first;
+    dim3 const block = dimensions.second;
+
     cudaLaunchCooperativeKernel(kernel, grid, block, args);
 }
 
@@ -277,7 +278,7 @@ __host__ std::pair<dim3, dim3> kernel::calculate_kernel_dimensions() const
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, dev);
 
-    std::size_t n_vect = n_row;
+    std::size_t const n_vect = n_row;
 
     std::size_t n_block = (n_vect % prop.maxThreadsPerBlock) ? 1 : 0;
     n_block += n_vect / prop.maxThreadsPerBlock;

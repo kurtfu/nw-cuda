@@ -43,20 +43,20 @@ std::string cuda::align(nw::input const& ref, nw::input const& src)
     kernel nw(match, miss, gap);
     nw.init(ref, src);
 
-    std::size_t payload = calculate_payload();
+    std::size_t const payload = calculate_payload();
     nw.allocate_traceback_matrix(payload);
 
-    std::size_t n_diag = n_row + n_col - 1;
+    std::size_t const n_diag = n_row + n_col - 1;
     std::size_t pos = 1;
 
     for (std::size_t ad = 1; ad < n_diag;)
     {
-        std::size_t from = ad;
-        std::size_t to = find_submatrix_border_vector(ad);
+        std::size_t const from = ad;
+        std::size_t const to = find_submatrix_border_vector(ad);
 
         nw.align_sequences(from, to);
 
-        std::size_t size = find_submatrix_size(from, to);
+        std::size_t const size = find_submatrix_size(from, to);
         nw.transfer(&matrix[pos], size);
 
         pos += size;
@@ -71,25 +71,25 @@ std::size_t cuda::calculate_payload() const
     static constexpr std::size_t threshold = 2'000'000;
 
     std::size_t max_vect = std::min(n_row, n_col);
-    std::size_t capacity = n_row * n_col;
+    std::size_t const capacity = n_row * n_col;
 
-    std::size_t payload = (capacity < threshold) ? capacity : threshold;
+    std::size_t const payload = (capacity < threshold) ? capacity : threshold;
 
     return (payload < max_vect) ? max_vect : payload;
 }
 
 std::size_t cuda::find_submatrix_border_vector(std::size_t start) const
 {
-    std::size_t n_diag = n_row + n_col - 1;
+    std::size_t const n_diag = n_row + n_col - 1;
     std::size_t end = start;
 
     std::size_t current_payload = 0;
-    std::size_t maximum_payload = calculate_payload();
+    std::size_t const maximum_payload = calculate_payload();
 
     while (end < n_diag && current_payload < maximum_payload)
     {
-        std::size_t rw = (end < n_col) ? 0 : end - n_col + 1;
-        std::size_t cl = (end < n_col) ? end : n_col - 1;
+        std::size_t const rw = (end < n_col) ? 0 : end - n_col + 1;
+        std::size_t const cl = (end < n_col) ? end : n_col - 1;
 
         std::size_t n_vect = std::min(n_row - rw, cl + 1);
 
@@ -107,13 +107,13 @@ std::size_t cuda::find_submatrix_size(std::size_t from, std::size_t to) const
 
 std::size_t cuda::prior_element_count(std::size_t ad) const
 {
-    std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t cl = (ad < n_col) ? ad : n_col - 1;
+    std::size_t const rw = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t const cl = (ad < n_col) ? ad : n_col - 1;
 
     std::size_t n_vect = std::min(n_row - rw, cl + 1);
 
-    std::size_t start = cl;
-    std::size_t end = start - n_vect + 1;
+    std::size_t const start = cl;
+    std::size_t const end = start - n_vect + 1;
 
     std::size_t size = rw * n_col;
 
@@ -125,10 +125,10 @@ std::size_t cuda::prior_element_count(std::size_t ad) const
 
 nw::trace const& cuda::operator()(std::size_t rw, std::size_t cl) const
 {
-    std::size_t ad = rw + cl;
+    std::size_t const ad = rw + cl;
 
-    std::size_t top = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t pos = prior_element_count(ad) + (rw - top);
+    std::size_t const top = (ad < n_col) ? 0 : ad - n_col + 1;
+    std::size_t const pos = prior_element_count(ad) + (rw - top);
 
     return matrix[pos];
 }

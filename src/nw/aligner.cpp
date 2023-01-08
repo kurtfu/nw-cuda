@@ -42,7 +42,7 @@ std::string aligner::traceback(nw::input const& ref, nw::input const& src) const
 
     while (rw != 0 || cl != 0)
     {
-        nw::trace trace = (*this)(rw, cl);
+        nw::trace const trace = (*this)(rw, cl);
 
         if (trace == nw::trace::pair)
         {

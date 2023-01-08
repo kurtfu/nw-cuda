@@ -26,7 +26,7 @@ int serial::score(nw::input const& ref, nw::input const& src)
     n_row = src.length();
     n_col = ref.length();
 
-    int val = std::numeric_limits<int>::min() - std::min({match, miss, gap});
+    int const val = std::numeric_limits<int>::min() - std::min({match, miss, gap});
 
     std::vector<int> prev(n_col, val);
     std::vector<int> curr(n_col, val);
@@ -39,9 +39,9 @@ int serial::score(nw::input const& ref, nw::input const& src)
 
         for (std::size_t cl = 1; cl < n_col; ++cl)
         {
-            int pair = prev[cl - 1] + ((ref[cl] == src[rw]) ? match : miss);
-            int insert = prev[cl] + gap;
-            int remove = curr[cl - 1] + gap;
+            int const pair = prev[cl - 1] + ((ref[cl] == src[rw]) ? match : miss);
+            int const insert = prev[cl] + gap;
+            int const remove = curr[cl - 1] + gap;
 
             curr[cl] = std::max({pair, insert, remove});
         }
@@ -58,7 +58,7 @@ std::string serial::align(nw::input const& ref, nw::input const& src)
     matrix.resize(n_row * n_col);
     matrix.shrink_to_fit();
 
-    int val = std::numeric_limits<int>::min() - std::min({match, miss, gap});
+    int const val = std::numeric_limits<int>::min() - std::min({match, miss, gap});
 
     std::vector<int> prev(n_col, val);
     std::vector<int> curr(n_col, val);
@@ -72,9 +72,9 @@ std::string serial::align(nw::input const& ref, nw::input const& src)
 
         for (std::size_t cl = 1; cl < n_col; ++cl)
         {
-            int pair = prev[cl - 1] + ((ref[cl] == src[rw]) ? match : miss);
-            int insert = prev[cl] + gap;
-            int remove = curr[cl - 1] + gap;
+            int const pair = prev[cl - 1] + ((ref[cl] == src[rw]) ? match : miss);
+            int const insert = prev[cl] + gap;
+            int const remove = curr[cl - 1] + gap;
 
             curr[cl] = std::max({pair, insert, remove});
             matrix[rw * n_col + cl] = find_trace(pair, insert, remove);
