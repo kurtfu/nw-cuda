@@ -272,10 +272,10 @@ __host__ void kernel::realign_vectors(std::size_t n_iter)
 
 __host__ std::pair<dim3, dim3> kernel::calculate_kernel_dimensions() const
 {
-    int dev;
+    int dev = 0;
     cudaGetDevice(&dev);
 
-    cudaDeviceProp prop;
+    cudaDeviceProp prop{};
     cudaGetDeviceProperties(&prop, dev);
 
     std::size_t const n_vect = n_row;
@@ -311,7 +311,7 @@ __host__ void kernel::transfer(trace* to, std::size_t size)
 
 __host__ int kernel::read_similarity_score() const
 {
-    int score;
+    int score = 0;
     cudaMemcpy(&score, &curr[n_row], sizeof(int), cudaMemcpyDefault);
 
     return score;
