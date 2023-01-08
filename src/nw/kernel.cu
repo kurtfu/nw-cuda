@@ -223,10 +223,11 @@ __host__ void kernel::calculate_similarity()
     std::size_t from = 1;
     std::size_t to = n_row + n_col - 1;
 
-    void* kernel = (void*)::score;
-    void* args[] = {this, &from, &to};
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto* kernel = reinterpret_cast<void*>(::score);
+    auto args = pack_kernel_args<void*>(this, &from, &to);
 
-    launch(kernel, args);
+    launch(kernel, static_cast<void**>(args.data()));
 
     std::size_t const n_iter = to - from;
     realign_vectors(n_iter);
@@ -234,10 +235,11 @@ __host__ void kernel::calculate_similarity()
 
 __host__ void kernel::align_sequences(std::size_t from, std::size_t to)
 {
-    void* kernel = (void*)::align;
-    void* args[] = {this, &from, &to};
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto* kernel = reinterpret_cast<void*>(::align);
+    auto args = pack_kernel_args<void*>(this, &from, &to);
 
-    launch(kernel, args);
+    launch(kernel, static_cast<void**>(args.data()));
 
     std::size_t const n_iter = to - from;
     realign_vectors(n_iter);

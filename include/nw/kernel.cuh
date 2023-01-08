@@ -6,6 +6,7 @@
 /*****************************************************************************/
 
 #include "nw/aligner.hpp"
+#include <array>
 
 /*****************************************************************************/
 /*  DATA TYPES                                                               */
@@ -45,14 +46,23 @@ namespace nw
         __host__ std::pair<dim3, dim3> calculate_kernel_dimensions() const;
         __host__ void launch(void* kernel, void** args);
 
+        template <typename... T>
+        __host__ constexpr auto pack_kernel_args(T&&... args) -> std::array<
+            typename std::decay<
+                typename std::common_type<T...>::type>::type,
+            sizeof...(T)>
+        {
+            return {std::forward<T>(args)...};
+        }
+
         __host__ void load(nw::input const& ref, nw::input const& src);
         __host__ void allocate_vectors();
         __host__ void realign_vectors(std::size_t n_iter);
 
-        static __device__ trace find_trace(int pair, int insert, int remove) ;
+        static __device__ trace find_trace(int pair, int insert, int remove);
 
-        static __device__ std::size_t thread_rank() ;
-        static __device__ std::size_t grid_size() ;
+        static __device__ std::size_t thread_rank();
+        static __device__ std::size_t grid_size();
 
         int match;
         int miss;
