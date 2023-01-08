@@ -18,7 +18,7 @@ namespace nw
     public:
         explicit input(std::string const& sequence);
 
-        char const& operator[](std::size_t) const;
+        char const& operator[](std::size_t pos) const;
         [[nodiscard]] std::size_t length() const;
 
     private:
