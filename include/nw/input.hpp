@@ -19,7 +19,7 @@ namespace nw
         explicit input(std::string const& sequence);
 
         char const& operator[](std::size_t) const;
-        std::size_t length() const;
+        [[nodiscard]] std::size_t length() const;
 
     private:
         std::string sequence;

@@ -39,7 +39,7 @@ namespace nw
 
     protected:
         nw::trace find_trace(int pair, int insert, int remove);
-        std::string traceback(nw::input const& ref, nw::input const& src) const;
+        [[nodiscard]] std::string traceback(nw::input const& ref, nw::input const& src) const;
 
         int match;
         int miss;
