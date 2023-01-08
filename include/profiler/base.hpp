@@ -38,11 +38,11 @@ namespace profiler
         virtual std::string run(nw::input const& ref, nw::input const& src) = 0;
 
     protected:
-        int match;
-        int miss;
-        int gap;
+        int match{};
+        int miss{};
+        int gap{};
 
-        nw::approach nw_approach;
+        nw::approach nw_approach{};
 
     private:
         std::ifstream input;
