@@ -12,8 +12,8 @@
 
 TEST_CASE("CUDA score - 1")
 {
-    std::string ref = "tuvfe";
-    std::string src = "kuvaf";
+    std::string const ref = "tuvfe";
+    std::string const src = "kuvaf";
 
     nw::cuda nw(1, -1, -2);
 
@@ -22,8 +22,8 @@ TEST_CASE("CUDA score - 1")
 
 TEST_CASE("CUDA score - 2")
 {
-    std::string ref = "gattaca";
-    std::string src = "gtcgacgca";
+    std::string const ref = "gattaca";
+    std::string const src = "gtcgacgca";
 
     nw::cuda nw(1, -1, -2);
 
@@ -32,8 +32,8 @@ TEST_CASE("CUDA score - 2")
 
 TEST_CASE("CUDA score - 3")
 {
-    std::string ref = "similarity";
-    std::string src = "pillar";
+    std::string const ref = "similarity";
+    std::string const src = "pillar";
 
     nw::cuda nw(1, -1, -2);
 
@@ -42,8 +42,8 @@ TEST_CASE("CUDA score - 3")
 
 TEST_CASE("CUDA align - 1")
 {
-    std::string ref = "tuvfe";
-    std::string src = "kuvaf";
+    std::string const ref = "tuvfe";
+    std::string const src = "kuvaf";
 
     nw::cuda nw(1, -1, -2);
 
@@ -52,8 +52,8 @@ TEST_CASE("CUDA align - 1")
 
 TEST_CASE("CUDA align - 2")
 {
-    std::string ref = "gattaca";
-    std::string src = "gtcgacgca";
+    std::string const ref = "gattaca";
+    std::string const src = "gtcgacgca";
 
     nw::cuda nw(1, -1, -2);
 
@@ -62,8 +62,8 @@ TEST_CASE("CUDA align - 2")
 
 TEST_CASE("CUDA align - 3")
 {
-    std::string ref = "similarity";
-    std::string src = "pillar";
+    std::string const ref = "similarity";
+    std::string const src = "pillar";
 
     nw::cuda nw(1, -1, -2);
 
