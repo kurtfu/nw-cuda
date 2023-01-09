@@ -55,22 +55,8 @@ nw::approach const& cxxopts::OptionValue::as<nw::approach>() const
     return opts[arg];
 }
 
-/*****************************************************************************/
-/*  MAIN APPLICATION                                                         */
-/*****************************************************************************/
-
-int main(int argc, char const* argv[])
+void profile(nw::approach approach, std::ifstream input, std::ofstream output)
 {
-    auto args = parse_program_argumnets(argc, argv);
-
-    auto approach = args["approach"].as<nw::approach>();
-
-    auto samples = args["input"].as<std::string>();
-    auto log = args["output"].as<std::string>();
-
-    std::ifstream input{samples};
-    std::ofstream output{log};
-
     std::string line;
 
     while (std::getline(input, line))
@@ -95,7 +81,30 @@ int main(int argc, char const* argv[])
         std::cout << "Exec Time: " << time.count() << '\n';
         output << src.length() << ',' << time.count() << ',' << result << '\n';
     }
+}
 
-    std::cout << "Testing has been completed!\n";
+/*****************************************************************************/
+/*  MAIN APPLICATION                                                         */
+/*****************************************************************************/
+
+int main(int argc, char const* argv[])
+{
+    try
+    {
+        auto args = parse_program_argumnets(argc, argv);
+
+        auto approach = args["approach"].as<nw::approach>();
+
+        auto input = args["input"].as<std::string>();
+        auto output = args["output"].as<std::string>();
+
+        profile(approach, std::ifstream{input}, std::ofstream{output});
+        std::cout << "Testing has been completed!\n";
+    }
+    catch (std::exception const& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
+
     return 0;
 }
