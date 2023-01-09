@@ -35,7 +35,7 @@ int serial::score(nw::input const& ref, nw::input const& src)
     {
         std::swap(prev, curr);
 
-        curr[0] = rw * gap;
+        curr[0] = static_cast<int>(rw) * gap;
 
         for (std::size_t cl = 1; cl < n_col; ++cl)
         {
@@ -67,7 +67,7 @@ std::string serial::align(nw::input const& ref, nw::input const& src)
     {
         std::swap(prev, curr);
 
-        curr[0] = row * gap;
+        curr[0] = static_cast<int>(row) * gap;
         matrix[row * n_col] = nw::trace::insert;
 
         for (std::size_t col = 1; col < n_col; ++col)

@@ -126,12 +126,15 @@ __device__ std::size_t kernel::thread_rank()
     std::size_t const thread_id = (threadIdx.y * blockDim.x) + threadIdx.x;
     std::size_t const block_id = (blockIdx.y * gridDim.x) + blockIdx.x;
 
-    return (block_id * (blockDim.x * blockDim.y)) + thread_id;
+    return (block_id * (static_cast<std::size_t>(blockDim.x) * blockDim.y)) + thread_id;
 }
 
 __device__ std::size_t kernel::grid_size()
 {
-    return (blockDim.y * gridDim.y) * (blockDim.x * gridDim.x);
+    auto dimension_size_x = static_cast<std::size_t>(blockDim.x) * gridDim.x;
+    auto dimension_size_y = static_cast<std::size_t>(blockDim.y) * gridDim.y;
+
+    return dimension_size_x * dimension_size_y;
 }
 
 __device__ nw::trace kernel::find_trace(int pair, int insert, int remove)
