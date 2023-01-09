@@ -15,10 +15,10 @@ using nw::cuda;
 /*  MEMBER FUNCTIONS                                                         */
 /*****************************************************************************/
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 cuda::cuda(int match, int miss, int gap)
     : aligner{match, miss, gap}
-{
-}
+{}
 
 int cuda::score(nw::input const& ref, nw::input const& src)
 {

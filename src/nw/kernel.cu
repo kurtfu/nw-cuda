@@ -31,6 +31,7 @@ namespace cg = cooperative_groups;
 
 namespace
 {
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     __global__ void align(kernel nw, std::size_t from, std::size_t to)
     {
         cg::grid_group const grid = cg::this_grid();
@@ -46,6 +47,7 @@ namespace
         }
     }
 
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     __global__ void score(kernel nw, std::size_t from, std::size_t to)
     {
         cg::grid_group const grid = cg::this_grid();
@@ -161,6 +163,7 @@ __device__ void kernel::advance(std::size_t ad)
 /*  MEMBER FUNCTIONS                                                         */
 /*****************************************************************************/
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 __host__ kernel::kernel(int match, int miss, int gap)
     : match{match}
     , miss{miss}

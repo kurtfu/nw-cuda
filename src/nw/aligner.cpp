@@ -15,6 +15,7 @@ using nw::aligner;
 /*  MEMBER FUNCTIONS                                                         */
 /*****************************************************************************/
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 aligner::aligner(int match, int miss, int gap)
     : match{match}
     , miss{miss}
