@@ -27,11 +27,11 @@ int cuda::score(nw::input const& ref, nw::input const& src)
     n_row = src.length();
     n_col = ref.length();
 
-    kernel nw(match, miss, gap);
-    nw.init(ref, src);
+    kernel algo(match, miss, gap);
+    algo.init(ref, src);
 
-    nw.calculate_similarity();
-    return nw.read_similarity_score();
+    algo.calculate_similarity();
+    return algo.read_similarity_score();
 }
 
 std::string cuda::align(nw::input const& ref, nw::input const& src)
@@ -42,27 +42,27 @@ std::string cuda::align(nw::input const& ref, nw::input const& src)
     matrix.resize(n_row * n_col);
     matrix.shrink_to_fit();
 
-    kernel nw(match, miss, gap);
-    nw.init(ref, src);
+    kernel algo(match, miss, gap);
+    algo.init(ref, src);
 
     std::size_t const payload = calculate_payload();
-    nw.allocate_traceback_matrix(payload);
+    algo.allocate_traceback_matrix(payload);
 
     std::size_t const n_diag = n_row + n_col - 1;
     std::size_t pos = 1;
 
     for (std::size_t ad = 1; ad < n_diag;)
     {
-        std::size_t const from = ad;
-        std::size_t const to = find_submatrix_border_vector(ad);
+        std::size_t const start = ad;
+        std::size_t const end = find_submatrix_border_vector(ad);
 
-        nw.align_sequences(from, to);
+        algo.align_sequences(start, end);
 
-        std::size_t const size = find_submatrix_size(from, to);
-        nw.transfer(&matrix[pos], size);
+        std::size_t const size = find_submatrix_size(start, end);
+        algo.transfer(&matrix[pos], size);
 
         pos += size;
-        ad = to;
+        ad = end;
     }
 
     return traceback(ref, src);
@@ -102,15 +102,15 @@ std::size_t cuda::find_submatrix_border_vector(std::size_t start) const
     return (current_payload > maximum_payload) ? end - 1 : end;
 }
 
-std::size_t cuda::find_submatrix_size(std::size_t from, std::size_t to) const
+std::size_t cuda::find_submatrix_size(std::size_t start, std::size_t end) const
 {
-    return prior_element_count(to) - prior_element_count(from);
+    return prior_element_count(end) - prior_element_count(start);
 }
 
-std::size_t cuda::prior_element_count(std::size_t ad) const
+std::size_t cuda::prior_element_count(std::size_t border) const
 {
-    std::size_t const row = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t const col = (ad < n_col) ? ad : n_col - 1;
+    std::size_t const row = (border < n_col) ? 0 : border - n_col + 1;
+    std::size_t const col = (border < n_col) ? border : n_col - 1;
 
     std::size_t n_vect = std::min(n_row - row, col + 1);
 
@@ -127,10 +127,10 @@ std::size_t cuda::prior_element_count(std::size_t ad) const
 
 nw::trace const& cuda::operator()(std::size_t row, std::size_t col) const
 {
-    std::size_t const ad = row + col;
+    std::size_t const border = row + col;
 
-    std::size_t const top = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t const pos = prior_element_count(ad) + (row - top);
+    std::size_t const top = (border < n_col) ? 0 : border - n_col + 1;
+    std::size_t const pos = prior_element_count(border) + (row - top);
 
     return matrix[pos];
 }

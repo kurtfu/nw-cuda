@@ -32,32 +32,32 @@ namespace cg = cooperative_groups;
 namespace
 {
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    __global__ void align(kernel nw, std::size_t from, std::size_t to)
+    __global__ void align(kernel self, std::size_t start, std::size_t end)
     {
         cg::grid_group const grid = cg::this_grid();
 
-        for (std::size_t ad = from; ad < to; ++ad)
+        for (std::size_t ad = start; ad < end; ++ad)
         {
-            nw.swap_vectors();
+            self.swap_vectors();
 
-            nw.align(ad);
-            nw.advance(ad);
+            self.align(ad);
+            self.advance(ad);
 
             grid.sync();
         }
     }
 
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    __global__ void score(kernel nw, std::size_t from, std::size_t to)
+    __global__ void score(kernel self, std::size_t start, std::size_t end)
     {
         cg::grid_group const grid = cg::this_grid();
 
-        for (std::size_t ad = from; ad < to; ++ad)
+        for (std::size_t ad = start; ad < end; ++ad)
         {
-            nw.swap_vectors();
+            self.swap_vectors();
 
-            nw.score(ad);
-            nw.advance(ad);
+            self.score(ad);
+            self.advance(ad);
 
             grid.sync();
         }
@@ -70,13 +70,13 @@ __device__ void kernel::swap_vectors()
     thrust::swap(hv, curr);
 }
 
-__device__ void kernel::align(std::size_t ad)
+__device__ void kernel::align(std::size_t border)
 {
     thrust::minimum<std::size_t> min;
     thrust::maximum<int> max;
 
-    std::size_t row = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t col = (ad < n_col) ? ad : n_col - 1;
+    std::size_t row = (border < n_col) ? 0 : border - n_col + 1;
+    std::size_t col = (border < n_col) ? border : n_col - 1;
 
     std::size_t pos = thread_rank() + row + 1;
     std::size_t end = min(n_row - row, col + 1) + row + 1;
@@ -99,13 +99,13 @@ __device__ void kernel::align(std::size_t ad)
     }
 }
 
-__device__ void kernel::score(std::size_t ad)
+__device__ void kernel::score(std::size_t border)
 {
     thrust::minimum<std::size_t> min;
     thrust::maximum<int> max;
 
-    std::size_t row = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t col = (ad < n_col) ? ad : n_col - 1;
+    std::size_t row = (border < n_col) ? 0 : border - n_col + 1;
+    std::size_t col = (border < n_col) ? border : n_col - 1;
 
     std::size_t pos = thread_rank() + row + 1;
     std::size_t end = min(n_row - row, col + 1) + row + 1;
@@ -149,12 +149,12 @@ __device__ nw::trace kernel::find_trace(int pair, int insert, int remove)
     return (insert > remove) ? nw::trace::insert : nw::trace::remove;
 }
 
-__device__ void kernel::advance(std::size_t ad)
+__device__ void kernel::advance(std::size_t border)
 {
     thrust::minimum<std::size_t> min;
 
-    std::size_t const row = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t const col = (ad < n_col) ? ad : n_col - 1;
+    std::size_t const row = (border < n_col) ? 0 : border - n_col + 1;
+    std::size_t const col = (border < n_col) ? border : n_col - 1;
 
     submatrix += min(n_row - row, col + 1);
 }
@@ -226,28 +226,28 @@ __host__ void kernel::allocate_traceback_matrix(std::size_t payload)
 
 __host__ void kernel::calculate_similarity()
 {
-    std::size_t from = 1;
-    std::size_t to = n_row + n_col - 1;
+    std::size_t start = 1;
+    std::size_t end = n_row + n_col - 1;
 
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     auto* kernel = reinterpret_cast<void*>(::score);
-    auto args = pack_kernel_args<void*>(this, &from, &to);
+    auto args = pack_kernel_args<void*>(this, &start, &end);
 
     launch(kernel, static_cast<void**>(args.data()));
 
-    std::size_t const n_iter = to - from;
+    std::size_t const n_iter = end - start;
     realign_vectors(n_iter);
 }
 
-__host__ void kernel::align_sequences(std::size_t from, std::size_t to)
+__host__ void kernel::align_sequences(std::size_t start, std::size_t end)
 {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
     auto* kernel = reinterpret_cast<void*>(::align);
-    auto args = pack_kernel_args<void*>(this, &from, &to);
+    auto args = pack_kernel_args<void*>(this, &start, &end);
 
     launch(kernel, static_cast<void**>(args.data()));
 
-    std::size_t const n_iter = to - from;
+    std::size_t const n_iter = end - start;
     realign_vectors(n_iter);
 }
 
@@ -311,9 +311,9 @@ __host__ std::pair<dim3, dim3> kernel::calculate_kernel_dimensions() const
     return std::make_pair(dim3(n_block), dim3(n_thread));
 }
 
-__host__ void kernel::transfer(trace* to, std::size_t size)
+__host__ void kernel::transfer(trace* dst, std::size_t size)
 {
-    cudaMemcpy(to, submatrix, size, cudaMemcpyDefault);
+    cudaMemcpy(dst, submatrix, size, cudaMemcpyDefault);
 }
 
 __host__ int kernel::read_similarity_score() const

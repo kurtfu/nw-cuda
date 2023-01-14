@@ -33,10 +33,10 @@ namespace nw
         nw::trace const& operator()(std::size_t row, std::size_t col) const override;
 
         [[nodiscard]] std::size_t calculate_payload() const;
-        [[nodiscard]] std::size_t prior_element_count(std::size_t ad) const;
+        [[nodiscard]] std::size_t prior_element_count(std::size_t border) const;
 
         [[nodiscard]] std::size_t find_submatrix_border_vector(std::size_t start) const;
-        [[nodiscard]] std::size_t find_submatrix_size(std::size_t from, std::size_t to) const;
+        [[nodiscard]] std::size_t find_submatrix_size(std::size_t start, std::size_t end) const;
 
         int match;
         int miss;

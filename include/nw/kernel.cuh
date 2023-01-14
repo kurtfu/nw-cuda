@@ -6,6 +6,7 @@
 /*****************************************************************************/
 
 #include "nw/aligner.hpp"
+
 #include <array>
 
 /*****************************************************************************/
@@ -31,15 +32,15 @@ namespace nw
         __host__ void allocate_traceback_matrix(std::size_t payload);
 
         __host__ void calculate_similarity();
-        __host__ void align_sequences(std::size_t from, std::size_t to);
+        __host__ void align_sequences(std::size_t start, std::size_t end);
 
-        __host__ void transfer(trace* to, std::size_t size);
+        __host__ void transfer(trace* dst, std::size_t size);
         __host__ int read_similarity_score() const;
 
-        __device__ void align(std::size_t ad);
-        __device__ void score(std::size_t ad);
+        __device__ void align(std::size_t border);
+        __device__ void score(std::size_t border);
 
-        __device__ void advance(std::size_t ad);
+        __device__ void advance(std::size_t border);
         __device__ void swap_vectors();
 
     private:
