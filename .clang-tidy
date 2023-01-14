@@ -1,0 +1,19 @@
+---
+Checks: '-*
+    bugprone-*,
+    cert-*,
+    clang-analyzer-*,
+    cppcoreguidelines-*,
+    hicpp-*,
+    misc-*,
+    modernize-*,
+    -modernize-use-trailing-return-type,
+    performance-*,
+    readability-*,
+'
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*(include).*'
+FormatStyle: file
+CheckOptions:
+  - {key: misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic, value: '1'}
+...
