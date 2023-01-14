@@ -10,62 +10,60 @@
 /*  TEST CASES                                                               */
 /*****************************************************************************/
 
-TEST_CASE("Serial score - 1")
+TEST_CASE("Serial score")
 {
-    std::string const ref = "tuvfe";
-    std::string const src = "kuvaf";
+    nw::serial algo(1, -1, -2);
 
-    nw::serial nw(1, -1, -2);
+    SECTION("Test with the same size")
+    {
+        std::string const ref = "tuvfe";
+        std::string const src = "kuvaf";
 
-    REQUIRE(nw.score(nw::input{ref}, nw::input{src}) == -1);
+        REQUIRE(algo.score(nw::input{ref}, nw::input{src}) == -1);
+    }
+
+    SECTION("Test with a longer source")
+    {
+        std::string const ref = "gattaca";
+        std::string const src = "gtcgacgca";
+
+        REQUIRE(algo.score(nw::input{ref}, nw::input{src}) == -3);
+    }
+
+    SECTION("Test with longer reference")
+    {
+        std::string const ref = "similarity";
+        std::string const src = "pillar";
+
+        REQUIRE(algo.score(nw::input{ref}, nw::input{src}) == -6);
+    }
 }
 
-TEST_CASE("Serial score - 2")
+TEST_CASE("Serial align")
 {
-    std::string const ref = "gattaca";
-    std::string const src = "gtcgacgca";
+    nw::serial algo(1, -1, -2);
 
-    nw::serial nw(1, -1, -2);
+    SECTION("Test with the same size")
+    {
+        std::string const ref = "tuvfe";
+        std::string const src = "kuvaf";
 
-    REQUIRE(nw.score(nw::input{ref}, nw::input{src}) == -3);
-}
+        REQUIRE(algo.align(nw::input{ref}, nw::input{src}) == "!**!!");
+    }
 
-TEST_CASE("Serial score - 3")
-{
-    std::string const ref = "similarity";
-    std::string const src = "pillar";
+    SECTION("Test with a longer source")
+    {
+        std::string const ref = "gattaca";
+        std::string const src = "gtcgacgca";
 
-    nw::serial nw(1, -1, -2);
+        REQUIRE(algo.align(nw::input{ref}, nw::input{src}) == "*!!!**--*");
+    }
 
-    REQUIRE(nw.score(nw::input{ref}, nw::input{src}) == -6);
-}
+    SECTION("Test with longer reference")
+    {
+        std::string const ref = "similarity";
+        std::string const src = "pillar";
 
-TEST_CASE("Serial align - 1")
-{
-    std::string const ref = "tuvfe";
-    std::string const src = "kuvaf";
-
-    nw::serial nw(1, -1, -2);
-
-    REQUIRE(nw.align(nw::input{ref}, nw::input{src}) == "!**!!");
-}
-
-TEST_CASE("Serial align - 2")
-{
-    std::string const ref = "gattaca";
-    std::string const src = "gtcgacgca";
-
-    nw::serial nw(1, -1, -2);
-
-    REQUIRE(nw.align(nw::input{ref}, nw::input{src}) == "*!!!**--*");
-}
-
-TEST_CASE("Serial align - 3")
-{
-    std::string const ref = "similarity";
-    std::string const src = "pillar";
-
-    nw::serial nw(1, -1, -2);
-
-    REQUIRE(nw.align(nw::input{ref}, nw::input{src}) == "!*!-***---");
+        REQUIRE(algo.align(nw::input{ref}, nw::input{src}) == "!*!-***---");
+    }
 }
