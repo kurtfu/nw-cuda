@@ -17,8 +17,11 @@ using nw::serial;
 /*  MEMBER FUNCTIONS                                                         */
 /*****************************************************************************/
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 serial::serial(int match, int miss, int gap)
-    : aligner{match, miss, gap}
+    : match{match}
+    , miss{miss}
+    , gap{gap}
 {}
 
 int serial::score(nw::input const& ref, nw::input const& src)

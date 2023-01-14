@@ -17,7 +17,9 @@ using nw::cuda;
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 cuda::cuda(int match, int miss, int gap)
-    : aligner{match, miss, gap}
+    : match{match}
+    , miss{miss}
+    , gap{gap}
 {}
 
 int cuda::score(nw::input const& ref, nw::input const& src)

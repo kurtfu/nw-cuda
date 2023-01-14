@@ -31,6 +31,15 @@ namespace nw
 
     private:
         nw::trace const& operator()(std::size_t row, std::size_t col) const override;
+
+        int match;
+        int miss;
+        int gap;
+
+        std::size_t n_row = 0;
+        std::size_t n_col = 0;
+
+        std::vector<nw::trace> matrix{};
     };
 }
 

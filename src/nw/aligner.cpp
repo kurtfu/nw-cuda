@@ -3,6 +3,7 @@
 /*****************************************************************************/
 
 #include "nw/aligner.hpp"
+
 #include <algorithm>
 
 /*****************************************************************************/
@@ -14,13 +15,6 @@ using nw::aligner;
 /*****************************************************************************/
 /*  MEMBER FUNCTIONS                                                         */
 /*****************************************************************************/
-
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-aligner::aligner(int match, int miss, int gap)
-    : match{match}
-    , miss{miss}
-    , gap{gap}
-{}
 
 nw::trace aligner::find_trace(int pair, int insert, int remove)
 {
@@ -36,8 +30,8 @@ std::string aligner::traceback(nw::input const& ref, nw::input const& src) const
 {
     std::string result;
 
-    std::size_t row = n_row - 1;
-    std::size_t col = n_col - 1;
+    std::size_t row = src.length() - 1;
+    std::size_t col = ref.length() - 1;
 
     while (row != 0 || col != 0)
     {

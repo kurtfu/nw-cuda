@@ -37,6 +37,15 @@ namespace nw
 
         [[nodiscard]] std::size_t find_submatrix_border_vector(std::size_t start) const;
         [[nodiscard]] std::size_t find_submatrix_size(std::size_t from, std::size_t to) const;
+
+        int match;
+        int miss;
+        int gap;
+
+        std::size_t n_row = 0;
+        std::size_t n_col = 0;
+
+        std::vector<nw::trace> matrix{};
     };
 }
 
