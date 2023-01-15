@@ -12,6 +12,14 @@
 #include <unordered_map>
 
 /*****************************************************************************/
+/*  MODULE VARIABLES                                                         */
+/*****************************************************************************/
+
+constexpr int match = 1;
+constexpr int miss = -1;
+constexpr int gap = -2;
+
+/*****************************************************************************/
 /*  MODULE FUNCTIONS                                                         */
 /*****************************************************************************/
 
@@ -72,7 +80,7 @@ void profile(nw::approach approach, std::ifstream input, std::ofstream output)
 
         auto creator = nw::creator(approach);
 
-        auto nw = creator.create(1, -1, -2);
+        auto nw = creator.create(match, miss, gap);
         auto result = nw->align(nw::input{ref}, nw::input{src});
 
         auto end = std::chrono::high_resolution_clock::now();
