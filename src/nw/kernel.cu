@@ -208,7 +208,7 @@ __host__ void kernel::allocate_vectors()
     cudaMalloc(&this->hv, n_vect * sizeof(int));
     cudaMalloc(&this->diag, n_vect * sizeof(int));
 
-    int val = std::numeric_limits<int>::min() - std::min({match, miss, gap});
+    int val = std::numeric_limits<int>::min() - std::min(match, std::min(miss, gap));
     std::vector<int> vect(n_vect, val);  // NOLINT(cppcoreguidelines-init-variables)
 
     cudaMemcpy(curr, &vect[0], n_vect * sizeof(int), cudaMemcpyDefault);
