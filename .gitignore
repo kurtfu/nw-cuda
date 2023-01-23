@@ -49,3 +49,6 @@ log/
 !.gitmodules
 
 !.clang-format
+!.clang-tidy
+
+!.editorconfig

@@ -23,7 +23,7 @@ namespace nw
     class creator
     {
     public:
-        creator(approach type);
+        explicit creator(approach type);
 
         std::unique_ptr<aligner> create(int match, int miss, int gap);
 

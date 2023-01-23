@@ -6,6 +6,7 @@
 /*****************************************************************************/
 
 #include "nw/input.hpp"
+
 #include <vector>
 
 /*****************************************************************************/
@@ -24,20 +25,25 @@ namespace nw
     class aligner
     {
     public:
+        aligner() = default;
+
+        aligner(aligner const& that) = delete;
+        aligner(aligner&& that) = delete;
+
         virtual ~aligner() = default;
 
-        virtual std::string align(input const& ref, input const& src) = 0;
-        virtual int score(input const& ref, input const& src) = 0;
+        aligner& operator=(aligner const& that) = delete;
+        aligner& operator=(aligner&& that) = delete;
+
+        virtual std::string align(nw::input const& ref, nw::input const& src) = 0;
+        virtual int score(nw::input const& ref, nw::input const& src) = 0;
 
     protected:
-        int match;
-        int miss;
-        int gap;
+        static nw::trace find_trace(int pair, int insert, int remove);
+        [[nodiscard]] std::string traceback(nw::input const& ref, nw::input const& src) const;
 
-        std::size_t n_row = 0;
-        std::size_t n_col = 0;
-
-        std::vector<trace> matrix;
+    private:
+        virtual nw::trace const& operator()(std::size_t row, std::size_t col) const = 0;
     };
 }
 

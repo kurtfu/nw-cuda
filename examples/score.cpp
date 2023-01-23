@@ -2,33 +2,41 @@
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
 
-#include <iostream>
-#include <unordered_map>
+#include "nw/creator.hpp"
 
 #include "cxxopts.hpp"
 
-#include "nw/creator.hpp"
-#include "profiler/creator.hpp"
+#include <chrono>
+#include <fstream>
+#include <iostream>
+#include <unordered_map>
+
+/*****************************************************************************/
+/*  MODULE VARIABLES                                                         */
+/*****************************************************************************/
+
+constexpr int match = 1;
+constexpr int miss = -1;
+constexpr int gap = -2;
 
 /*****************************************************************************/
 /*  MODULE FUNCTIONS                                                         */
 /*****************************************************************************/
 
-cxxopts::ParseResult parse_program_argumnets(int argc, char const* argv[])
+cxxopts::ParseResult parse_program_argumnets(int argc, char const** argv)
 {
     cxxopts::Options opts("nw");
 
     auto type = cxxopts::value<std::string>();
 
-    opts.add_options()("a,approach", "Specify the approach", type, "APPROACH");
     opts.add_options()("h,help", "Display help");
+    opts.add_options()("a,approach", "Specify the approach", type, "APPROACH");
     opts.add_options()("i,input", "Specify the input samples", type, "FILE");
     opts.add_options()("o,output", "Specify the output file", type, "FILE");
-    opts.add_options()("t,test", "Specify the test method", type, "METHOD");
 
     auto args = opts.parse(argc, argv);
 
-    if (args.count("help"))
+    if (args.count("help") != 0)
     {
         std::cout << opts.help() << '\n';
         std::exit(EXIT_SUCCESS);
@@ -55,22 +63,32 @@ nw::approach const& cxxopts::OptionValue::as<nw::approach>() const
     return opts[arg];
 }
 
-template <>
-profiler::approach const& cxxopts::OptionValue::as<profiler::approach>() const
+void profile(nw::approach approach, std::ifstream input, std::ofstream output)
 {
-    static std::unordered_map<std::string, profiler::approach> opts = {
-        {"align", profiler::approach::align},
-        {"score", profiler::approach::score},
-    };
+    std::string line;
 
-    auto arg = this->as<std::string>();
-
-    if (opts.find(arg) == opts.end())
+    while (std::getline(input, line))
     {
-        throw std::runtime_error("\'" + arg + "\' is not a valid profiler");
-    }
+        std::istringstream iss(line);
 
-    return opts[arg];
+        std::string src;
+        std::string ref;
+
+        iss >> src >> ref;
+
+        auto begin = std::chrono::high_resolution_clock::now();
+
+        auto creator = nw::creator(approach);
+
+        auto nw = creator.create(match, miss, gap);
+        auto result = nw->score(nw::input{ref}, nw::input{src});
+
+        auto end = std::chrono::high_resolution_clock::now();
+        auto time = std::chrono::duration_cast<std::chrono::milliseconds>(end - begin);
+
+        std::cout << "Exec Time: " << time.count() << '\n';
+        output << src.length() << ',' << time.count() << ',' << result << '\n';
+    }
 }
 
 /*****************************************************************************/
@@ -84,25 +102,16 @@ int main(int argc, char const* argv[])
         auto args = parse_program_argumnets(argc, argv);
 
         auto approach = args["approach"].as<nw::approach>();
-        auto test = args["test"].as<profiler::approach>();
 
-        auto samples = args["input"].as<std::string>();
-        auto log = args["output"].as<std::string>();
+        auto input = args["input"].as<std::string>();
+        auto output = args["output"].as<std::string>();
 
-        auto profiler = profiler::creator::create(test);
-
-        profiler->assign_scoring_coefficients(1, -1, -2);
-        profiler->assign_nw_approach(approach);
-
-        profiler->attach_input(samples);
-        profiler->attach_output(log);
-
-        profiler->profile_samples();
+        profile(approach, std::ifstream{input}, std::ofstream{output});
         std::cout << "Testing has been completed!\n";
     }
-    catch (std::exception const& ex)
+    catch (std::exception const& e)
     {
-        std::cerr << ex.what() << '\n';
+        std::cerr << e.what() << '\n';
     }
 
     return 0;

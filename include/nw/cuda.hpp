@@ -9,7 +9,7 @@
 
 /*****************************************************************************/
 /*  DATA TYPES                                                               */
-/*****************************************************************************/
+/********************************************delete*********************************/
 
 namespace nw
 {
@@ -17,21 +17,35 @@ namespace nw
     {
     public:
         cuda(int match, int miss, int gap);
-        ~cuda() = default;
+
+        cuda(cuda const& that) = delete;
+        cuda(cuda&& that) = delete;
+
+        ~cuda() override = default;
+
+        cuda& operator=(cuda const& that) = delete;
+        cuda& operator=(cuda&& that) = delete;
 
         std::string align(nw::input const& ref, nw::input const& src) override;
         int score(nw::input const& ref, nw::input const& src) override;
 
     private:
-        trace const& operator()(std::size_t rw, std::size_t cl) const;
+        nw::trace const& operator()(std::size_t row, std::size_t col) const override;
 
-        std::size_t partition_payload() const;
-        std::size_t prior_element_count(std::size_t ad) const;
+        [[nodiscard]] std::size_t calculate_payload() const;
+        [[nodiscard]] std::size_t prior_element_count(std::size_t border) const;
 
-        std::size_t find_submatrix_end(std::size_t start, std::size_t payload);
-        std::size_t find_submatrix_size(std::size_t start, std::size_t end);
+        [[nodiscard]] std::size_t find_submatrix_border_vector(std::size_t start) const;
+        [[nodiscard]] std::size_t find_submatrix_size(std::size_t start, std::size_t end) const;
 
-        std::string traceback(nw::input const& ref, nw::input const& src) const;
+        int match;
+        int miss;
+        int gap;
+
+        std::size_t n_row = 0;
+        std::size_t n_col = 0;
+
+        std::vector<nw::trace> matrix{};
     };
 }
 

@@ -1,3 +1,4 @@
+// NOLINTBEGIN(cppcoreguidelines-pro-bounds-pointer-arithmetic)
 /*****************************************************************************/
 /*  HEADER INCLUDES                                                          */
 /*****************************************************************************/
@@ -25,31 +26,144 @@ using nw::kernel;
 namespace cg = cooperative_groups;
 
 /*****************************************************************************/
-/*  FREE FUNCTIONS                                                           */
+/*  KERNEL FUNCTIONS                                                         */
 /*****************************************************************************/
 
 namespace
 {
-    __global__ void fill(kernel nw, std::size_t from, std::size_t to, bool tb)
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    __global__ void align(kernel self, std::size_t start, std::size_t end)
     {
-        cg::grid_group grid = cg::this_grid();
+        cg::grid_group const grid = cg::this_grid();
 
-        for (std::size_t ad = from; ad < to; ++ad)
+        for (std::size_t ad = start; ad < end; ++ad)
         {
-            nw.swap_vectors();
+            self.swap_vectors();
 
-            nw.score(ad, tb);
-            nw.advance(ad);
+            self.align(ad);
+            self.advance(ad);
+
+            grid.sync();
+        }
+    }
+
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    __global__ void score(kernel self, std::size_t start, std::size_t end)
+    {
+        cg::grid_group const grid = cg::this_grid();
+
+        for (std::size_t ad = start; ad < end; ++ad)
+        {
+            self.swap_vectors();
+
+            self.score(ad);
+            self.advance(ad);
 
             grid.sync();
         }
     }
 }
 
+__device__ void kernel::swap_vectors()
+{
+    thrust::swap(diag, hv);
+    thrust::swap(hv, curr);
+}
+
+__device__ void kernel::align(std::size_t border)
+{
+    thrust::minimum<std::size_t> min;
+    thrust::maximum<int> max;
+
+    std::size_t row = (border < n_col) ? 0 : border - n_col + 1;
+    std::size_t col = (border < n_col) ? border : n_col - 1;
+
+    std::size_t pos = thread_rank() + row + 1;
+    std::size_t end = min(n_row - row, col + 1) + row + 1;
+
+    std::size_t iter = thread_rank();
+
+    for (; pos < end; pos += grid_size())
+    {
+        row += thread_rank();
+        col -= thread_rank();
+
+        int pair = diag[pos - 1] + ((ref[col] == src[row]) ? match : miss);
+        int insert = hv[pos - 1] + gap;
+        int remove = hv[pos] + gap;
+
+        curr[pos] = max(pair, max(insert, remove));
+        submatrix[iter] = find_trace(pair, insert, remove);
+
+        iter += grid_size();
+    }
+}
+
+__device__ void kernel::score(std::size_t border)
+{
+    thrust::minimum<std::size_t> min;
+    thrust::maximum<int> max;
+
+    std::size_t row = (border < n_col) ? 0 : border - n_col + 1;
+    std::size_t col = (border < n_col) ? border : n_col - 1;
+
+    std::size_t pos = thread_rank() + row + 1;
+    std::size_t end = min(n_row - row, col + 1) + row + 1;
+
+    for (; pos < end; pos += grid_size())
+    {
+        row += thread_rank();
+        col -= thread_rank();
+
+        int pair = diag[pos - 1] + ((ref[col] == src[row]) ? match : miss);
+        int insert = hv[pos - 1] + gap;
+        int remove = hv[pos] + gap;
+
+        curr[pos] = max(pair, max(insert, remove));
+    }
+}
+
+__device__ std::size_t kernel::thread_rank()
+{
+    std::size_t const thread_id = (threadIdx.y * blockDim.x) + threadIdx.x;
+    std::size_t const block_id = (blockIdx.y * gridDim.x) + blockIdx.x;
+
+    return (block_id * (static_cast<std::size_t>(blockDim.x) * blockDim.y)) + thread_id;
+}
+
+__device__ std::size_t kernel::grid_size()
+{
+    auto dimension_size_x = static_cast<std::size_t>(blockDim.x) * gridDim.x;
+    auto dimension_size_y = static_cast<std::size_t>(blockDim.y) * gridDim.y;
+
+    return dimension_size_x * dimension_size_y;
+}
+
+__device__ nw::trace kernel::find_trace(int pair, int insert, int remove)
+{
+    if (pair > insert)
+    {
+        return (pair > remove) ? nw::trace::pair : nw::trace::remove;
+    }
+
+    return (insert > remove) ? nw::trace::insert : nw::trace::remove;
+}
+
+__device__ void kernel::advance(std::size_t border)
+{
+    thrust::minimum<std::size_t> min;
+
+    std::size_t const row = (border < n_col) ? 0 : border - n_col + 1;
+    std::size_t const col = (border < n_col) ? border : n_col - 1;
+
+    submatrix += min(n_row - row, col + 1);
+}
+
 /*****************************************************************************/
-/*  PUBLIC METHODS                                                           */
+/*  MEMBER FUNCTIONS                                                         */
 /*****************************************************************************/
 
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 __host__ kernel::kernel(int match, int miss, int gap)
     : match{match}
     , miss{miss}
@@ -77,127 +191,6 @@ __host__ void kernel::init(nw::input const& ref, nw::input const& src)
     allocate_vectors();
 }
 
-__host__ void kernel::allocate_traceback_matrix(std::size_t payload)
-{
-    cudaFree(submatrix);
-    cudaMalloc(&submatrix, payload * sizeof(trace));
-}
-
-__host__ void kernel::launch(std::size_t from, std::size_t to, bool traceback)
-{
-    void* args[] = {this, &from, &to, &traceback};
-    void* kernel = fill;
-
-    std::size_t n_vect = n_row;
-
-    dim3 grid;
-    dim3 block;
-
-    std::tie(grid, block) = align_dimension(n_vect);
-
-    cudaLaunchCooperativeKernel(kernel, grid, block, args);
-
-    std::size_t n_iter = to - from;
-    realign_vectors(n_iter);
-}
-
-__host__ void kernel::transfer(trace* to, std::size_t size)
-{
-    cudaMemcpy(to, submatrix, size, cudaMemcpyDefault);
-}
-
-__device__ void kernel::score(std::size_t ad, bool traceback)
-{
-    thrust::minimum<std::size_t> min;
-    thrust::maximum<int> max;
-
-    std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t cl = (ad < n_col) ? ad : n_col - 1;
-
-    std::size_t pos = thread_rank() + rw + 1;
-    std::size_t end = min(n_row - rw, cl + 1) + rw + 1;
-
-    std::size_t iter = thread_rank();
-
-    for (; pos < end; pos += grid_size())
-    {
-        rw += thread_rank();
-        cl -= thread_rank();
-
-        int pair = diag[pos - 1] + ((ref[cl] == src[rw]) ? match : miss);
-        int insert = hv[pos - 1] + gap;
-        int remove = hv[pos] + gap;
-
-        curr[pos] = max(pair, max(insert, remove));
-
-        if (traceback)
-        {
-            submatrix[iter] = find_trace(pair, insert, remove);
-            iter += grid_size();
-        }
-    }
-}
-
-__host__ int kernel::read_similarity_score() const
-{
-    int score;
-    cudaMemcpy(&score, &curr[n_row], sizeof(int), cudaMemcpyDefault);
-
-    return score;
-}
-
-__device__ void kernel::advance(std::size_t ad)
-{
-    thrust::minimum<std::size_t> min;
-
-    std::size_t rw = (ad < n_col) ? 0 : ad - n_col + 1;
-    std::size_t cl = (ad < n_col) ? ad : n_col - 1;
-
-    submatrix += min(n_row - rw, cl + 1);
-}
-
-__device__ void kernel::swap_vectors()
-{
-    thrust::swap(diag, hv);
-    thrust::swap(hv, curr);
-}
-
-/*****************************************************************************/
-/*  PRIVATE METHODS                                                          */
-/*****************************************************************************/
-
-__host__ std::pair<dim3, dim3> kernel::align_dimension(std::size_t n_vect)
-{
-    int dev;
-    cudaGetDevice(&dev);
-
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, dev);
-
-    std::size_t n_block = (n_vect % prop.maxThreadsPerBlock) ? 1 : 0;
-    n_block += n_vect / prop.maxThreadsPerBlock;
-
-    if (n_block > prop.multiProcessorCount)
-    {
-        n_block = prop.multiProcessorCount;
-    }
-
-    std::size_t n_thread = (n_vect % n_block) ? 1 : 0;
-    n_thread += n_vect / n_block;
-
-    if (n_thread % prop.warpSize)
-    {
-        n_thread = ((n_thread / prop.warpSize) + 1) * prop.warpSize;
-    }
-
-    if (n_thread > prop.maxThreadsPerMultiProcessor)
-    {
-        n_thread = prop.maxThreadsPerMultiProcessor;
-    }
-
-    return std::make_pair(dim3(n_block), dim3(n_thread));
-}
-
 __host__ void kernel::load(nw::input const& ref, nw::input const& src)
 {
     cudaMalloc(&this->ref, ref.length());
@@ -209,20 +202,63 @@ __host__ void kernel::load(nw::input const& ref, nw::input const& src)
 
 __host__ void kernel::allocate_vectors()
 {
-    std::size_t n_vect = n_row + 1;
+    std::size_t const n_vect = n_row + 1;
 
     cudaMalloc(&this->curr, n_vect * sizeof(int));
     cudaMalloc(&this->hv, n_vect * sizeof(int));
     cudaMalloc(&this->diag, n_vect * sizeof(int));
 
-    int val = std::numeric_limits<int>::min() - std::min({match, miss, gap});
-    std::vector<int> vect(n_vect, val);
+    int val = std::numeric_limits<int>::min() - std::min(match, std::min(miss, gap));
+    std::vector<int> vect(n_vect, val);  // NOLINT(cppcoreguidelines-init-variables)
 
     cudaMemcpy(curr, &vect[0], n_vect * sizeof(int), cudaMemcpyDefault);
     cudaMemcpy(hv, &vect[0], n_vect * sizeof(int), cudaMemcpyDefault);
     cudaMemcpy(diag, &vect[0], n_vect * sizeof(int), cudaMemcpyDefault);
 
     cudaMemset(&curr[1], 0, sizeof(int));
+}
+
+__host__ void kernel::allocate_traceback_matrix(std::size_t payload)
+{
+    cudaFree(submatrix);
+    cudaMalloc(&submatrix, payload * sizeof(trace));
+}
+
+__host__ void kernel::calculate_similarity()
+{
+    std::size_t start = 1;
+    std::size_t end = n_row + n_col - 1;
+
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto* kernel = reinterpret_cast<void*>(::score);
+    auto args = pack_kernel_args<void*>(this, &start, &end);
+
+    launch(kernel, static_cast<void**>(args.data()));
+
+    std::size_t const n_iter = end - start;
+    realign_vectors(n_iter);
+}
+
+__host__ void kernel::align_sequences(std::size_t start, std::size_t end)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    auto* kernel = reinterpret_cast<void*>(::align);
+    auto args = pack_kernel_args<void*>(this, &start, &end);
+
+    launch(kernel, static_cast<void**>(args.data()));
+
+    std::size_t const n_iter = end - start;
+    realign_vectors(n_iter);
+}
+
+__host__ void kernel::launch(void* kernel, void** args)
+{
+    auto dimensions = calculate_kernel_dimensions();
+
+    dim3 const grid = dimensions.first;
+    dim3 const block = dimensions.second;
+
+    cudaLaunchCooperativeKernel(kernel, grid, block, args);
 }
 
 __host__ void kernel::realign_vectors(std::size_t n_iter)
@@ -241,27 +277,50 @@ __host__ void kernel::realign_vectors(std::size_t n_iter)
     }
 }
 
-__device__ nw::trace kernel::find_trace(int pair, int insert, int remove)
+__host__ std::pair<dim3, dim3> kernel::calculate_kernel_dimensions() const
 {
-    if (pair > insert)
+    int dev = 0;
+    cudaGetDevice(&dev);
+
+    cudaDeviceProp prop{};
+    cudaGetDeviceProperties(&prop, dev);
+
+    std::size_t const n_vect = n_row;
+
+    std::size_t n_block = ((n_vect % prop.maxThreadsPerBlock) != 0) ? 1 : 0;
+    n_block += n_vect / prop.maxThreadsPerBlock;
+
+    if (n_block > prop.multiProcessorCount)
     {
-        return (pair > remove) ? nw::trace::pair : nw::trace::remove;
+        n_block = prop.multiProcessorCount;
     }
-    else
+
+    std::size_t n_thread = ((n_vect % n_block) != 0) ? 1 : 0;
+    n_thread += n_vect / n_block;
+
+    if ((n_thread % prop.warpSize) != 0)
     {
-        return (insert > remove) ? nw::trace::insert : nw::trace::remove;
+        n_thread = ((n_thread / prop.warpSize) + 1) * prop.warpSize;
     }
+
+    if (n_thread > prop.maxThreadsPerMultiProcessor)
+    {
+        n_thread = prop.maxThreadsPerMultiProcessor;
+    }
+
+    return std::make_pair(dim3(n_block), dim3(n_thread));
 }
 
-__device__ std::size_t kernel::thread_rank() const
+__host__ void kernel::transfer(trace* dst, std::size_t size)
 {
-    std::size_t thread_id = (threadIdx.y * blockDim.x) + threadIdx.x;
-    std::size_t block_id = (blockIdx.y * gridDim.x) + blockIdx.x;
-
-    return (block_id * (blockDim.x * blockDim.y)) + thread_id;
+    cudaMemcpy(dst, submatrix, size, cudaMemcpyDefault);
 }
 
-__device__ std::size_t kernel::grid_size() const
+__host__ int kernel::read_similarity_score() const
 {
-    return (blockDim.y * gridDim.y) * (blockDim.x * gridDim.x);
+    int score = 0;
+    cudaMemcpy(&score, &curr[n_row], sizeof(int), cudaMemcpyDefault);
+
+    return score;
 }
+// NOLINTEND(cppcoreguidelines-pro-bounds-pointer-arithmetic)

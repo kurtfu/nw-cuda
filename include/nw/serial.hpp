@@ -17,14 +17,29 @@ namespace nw
     {
     public:
         serial(int match, int miss, int gap);
-        ~serial() = default;
+
+        serial(serial const& that) = delete;
+        serial(serial&& that) = delete;
+
+        ~serial() override = default;
+
+        serial& operator=(serial const& that) = delete;
+        serial& operator=(serial&& that) = delete;
 
         std::string align(nw::input const& ref, nw::input const& src) override;
         int score(nw::input const& ref, nw::input const& src) override;
 
     private:
-        trace find_trace(int pair, int insert, int remove);
-        std::string traceback(nw::input const& ref, nw::input const& src) const;
+        nw::trace const& operator()(std::size_t row, std::size_t col) const override;
+
+        int match;
+        int miss;
+        int gap;
+
+        std::size_t n_row = 0;
+        std::size_t n_col = 0;
+
+        std::vector<nw::trace> matrix{};
     };
 }
 

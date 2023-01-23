@@ -10,34 +10,17 @@ class Log:
         self.data = dict()
         self.aver = dict()
 
+    def parse(self):
+        with open(self.file) as file:
+            self.__read(file)
 
-class Parser:
-    @classmethod
-    def parse(cls, log):
-        with open(log.file) as file:
-            log.data = cls.__read(file)
+        for length, time in self.data.items():
+            self.aver[length] = round(sum(time) / len(time))
 
-        log.aver = cls.__average(log.data)
-
-    @classmethod
-    def __read(cls, file):
-        data = dict()
-
+    def __read(self, file):
         for line in file:
-            length, _, time = line.strip().split(',')
-            data.setdefault(int(length), list()).append(int(time))
-
-        next(iter(data.values())).pop(0)
-        return data
-
-    @classmethod
-    def __average(cls, data):
-        aver = dict()
-
-        for length, time in data.items():
-            aver[length] = round(sum(time) / len(time))
-
-        return aver
+            length, time, _ = line.strip().split(',')
+            self.data.setdefault(int(length), list()).append(int(time))
 
 
 class Plotter:
@@ -80,8 +63,8 @@ if __name__ == '__main__':
 
     for name, file in logs:
         log = Log(name, file)
+        log.parse()
 
-        Parser.parse(log)
         plotter.add_log(log)
 
     plotter.plot()
